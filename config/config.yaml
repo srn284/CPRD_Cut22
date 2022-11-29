@@ -10,7 +10,7 @@ file_path:
   practice:  /home/workspace/datasets/cprd/cprd2021/*/*_Practice_*
   consultation: /home/workspace/datasets/cprd/cprd2021/*/*_Consultation_*
   staff: /home/workspace/datasets/cprd/cprd2021/*/*_Staff*
-  diagnosis_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hesae_diagnosis_20_095_DM.txt
+  diagnosis_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hes_diagnosis_hosp_20_095_DM.txt
   death: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/death_patient_20_095_DM.txt
   eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
   entity:

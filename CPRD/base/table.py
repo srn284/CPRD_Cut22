@@ -94,8 +94,9 @@ class Diagnosis(DataFrame):
 
     def cvt_admidate2date(self):
         """conver admidate from string to date"""
-        df = self.withColumn('admidate', F.concat(F.col('admidate').substr(7, 4), F.col('admidate').substr(4,2), F.col('admidate').substr(1, 2)))
-        return Diagnosis(df.withColumn('admidate', cvt_datestr2time(df, 'admidate')))
+        df = self.withColumn('admidate', cvt_datestr2time(self, 'admidate'))
+
+        return Diagnosis(df)
 
     def icd_rm_dot(self):
         """remove '.' from ICD code"""
@@ -105,8 +106,16 @@ class Diagnosis(DataFrame):
     def rm_date_icd_empty(self):
         """remove admidate or icd code is empty"""
         return Diagnosis(self.filter((F.col('admidate') != '') & (F.col('ICD') != '')))
+    def hes_apc_timefilter(self):
+        """not all HES records are "acceptable" - only those in a certain time range are acceptable and this function
+        conducts filtering
+        """
 
+        df = self.withColumn('goodstart', F.to_date(F.lit(DICT2KEEP['hes_apc'][0]), 'dd/MM/yyyy')) \
+            .withColumn('goodend', F.to_date(F.lit(DICT2KEEP['hes_apc'][1]), 'dd/MM/yyyy'))
 
+        df = df.filter(F.col('admidate') >= F.col('goodstart')).filter(F.col('admidate') < F.col('goodend'))
+        return Diagnosis(df.drop('goodend').drop('goodstart'))
 class Hes(DataFrame):
     def __init__(self, df):
         super(self.__class__, self).__init__(df._jdf, df.sql_ctx)
@@ -126,7 +135,7 @@ class Therapy(DataFrame):
 
     def rm_eventdate_prodcode_empty(self):
         """rm row with empty eventdate or medcode"""
-        return Therapy(self.filter((F.col('eventdate') != '') & (F.col('prodcode') != '')))
+        return Therapy(self.filter((F.col('issuedate') != '') & (F.col('prodcodeid') != '')).withColumnRenamed('prodcodeid','prodcode').withColumnRenamed('issuedate','eventdate'))
 
     def cvtEventDate2Time(self):
         """ convert eventdate from strnig to date type"""

@@ -3,6 +3,8 @@ from CPRD.config.spark import read_txt, read_csv, read_txtzip
 import pyspark.sql.functions as F
 from CPRD.config.utils import cvt_str2time
 from CPRD.config.utils import rename_col
+from utils.utils import *
+DICT2KEEP = load_obj('/home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/Set 21/linkage_coverage_dictv')
 
 
 def retrieve_patient(dir, spark):
@@ -58,8 +60,8 @@ def retrieve_hes_diagnoses(dir, spark):
     :return: ['patid', "ICD", "eventdate"]
     """
 
-    hes_diagnosis = rename_col(Diagnosis(read_txtzip(spark.sc, spark.sqlContext, path=dir))
-                               .rm_date_icd_empty().cvt_admidate2date(), old='admidate', new='eventdate')
+    hes_diagnosis = rename_col(Diagnosis(read_txt(spark.sc, spark.sqlContext, path=dir))
+                               .rm_date_icd_empty().cvt_admidate2date().hes_apc_timefilter(), old='admidate', new='eventdate')
 
     return hes_diagnosis
 
@@ -120,7 +122,7 @@ def retrieve_demographics(patient, practice, practiceLink=True):
 
 
 def retrieve_link_eligible(dir, spark):
-    eligible = read_txtzip(spark.sc, spark.sqlContext, dir).where(F.col('hes_e') == 1)
+    eligible = read_txt(spark.sc, spark.sqlContext, dir).where(F.col('hes_e') == 1)
     return eligible
 
 
@@ -135,8 +137,11 @@ def retrieve_death(dir, spark):
 
     death = read_txt(spark.sc, spark.sqlContext, path=dir)
     death = death.withColumn('dod', cvt_str2time(death, 'dod', year_first=False))
-    death = death.withColumn('dod')
-    return death
+    death = death.withColumn('goodstart', F.to_date(F.lit(DICT2KEEP['ons_death'][0])  , 'dd/MM/yyyy')  ) \
+        .withColumn('goodend', F.to_date(F.lit(DICT2KEEP['ons_death'][1]), 'dd/MM/yyyy'))
+
+    death = death.filter(F.col('dod') >= F.col('goodstart') ).filter(F.col('dod')  < F.col('goodend') )
+    return death.drop('goodend').drop('goodstart')
 
 
 def retrieve_bnf_prod_crossmap(dir, spark, cut4= True):

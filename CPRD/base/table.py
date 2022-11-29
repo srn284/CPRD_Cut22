@@ -20,7 +20,7 @@ class Patient(DataFrame):
 
     def cvt_tod2date(self):
         """convert tod from string to date"""
-        return Patient(self.withColumn('regenddate', cvt_datestr2time(self, 'regenddate')))
+        return Patient(self.withColumn('tod', cvt_datestr2time(self, 'regenddate')) .drop('regenddate'))
 
     def cvt_deathdate2date(self):
         """convert deathdate from string to date"""
@@ -28,7 +28,7 @@ class Patient(DataFrame):
 
     def cvt_crd2date(self):
         """convert crd from string to date"""
-        return Patient(self.withColumn('regstartdate', cvt_datestr2time(self, 'regstartdate')))
+        return Patient(self.withColumn('crd', cvt_datestr2time(self, 'regstartdate')).drop('regstartdate'))
 
     def cvt_pracid(self):
         """get pracid from patid inorder to join with practice table"""
@@ -39,13 +39,18 @@ class Clinical(DataFrame):
     def __init__(self, df):
         super(self.__class__, self).__init__(df._jdf, df.sql_ctx)
 
+
     def cvtEventDate2Time(self):
         """ convert eventdate from strnig to date type"""
-        return Clinical(self.withColumn('eventdate', cvt_datestr2time(self, 'eventdate')))
+        return Clinical(self.withColumn('eventdate', cvt_datestr2time(self, 'obsdate')) .drop('obsdate'))
 
     def rm_eventdate_medcode_empty(self):
         """rm row with empty eventdate or medcode"""
-        return Clinical(self.filter((F.col('eventdate') != '') & (F.col('medcode') != '')))
+        return Clinical(self.filter((F.col('obsdate') != '') & (F.col('medcodeid') != '')).withColumn('medcode', F.col('medcodeid')) .drop('medcodeid'))
+
+    def filter_byobservation(self):
+        """remove the rows which are not observations"""
+        return Clinical (self.where((F.col('obstypeid')=='7')))
 
 
 
@@ -74,6 +79,8 @@ class Practice(DataFrame):
     def cvt_uts2date(self):
         """NOTE: UTS NOT POPULATED IN 2021 CUT -- FOR NOW, SET TO STATIC VALUE!!!"""
         return Practice(self.drop('uts').withColumn('uts', F.to_date(F.lit('10/10/0001') , 'dd/mm/yyyy')))
+    def intpracid(self):
+        return Practice(self.withColumn('pracid', self['pracid'].cast(pyspark.sql.types.IntegerType())))
 
 
 class Diagnosis(DataFrame):

@@ -32,7 +32,7 @@ def retrieve_clinical(dir, spark):
     """
 
     clinical = Clinical(read_txtzip(spark.sc, spark.sqlContext, path=dir)).rm_eventdate_medcode_empty() \
-        .cvtEventDate2Time()
+        .cvtEventDate2Time().filter_byobservation()
 
     return clinical
 

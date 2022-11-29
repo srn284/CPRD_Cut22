@@ -1,5 +1,5 @@
 from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes
-from CPRD.config.spark import read_txt, read_csv
+from CPRD.config.spark import read_txt, read_csv, read_txtzip
 import pyspark.sql.functions as F
 from CPRD.config.utils import cvt_str2time
 import os

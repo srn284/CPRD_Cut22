@@ -3,8 +3,8 @@ pyspark:
   temp: /home/rnshishir/sparkNewT
   pyspark_env: /home/rnshishir/anaconda3/envs/pyspark37/bin/python3.7
 file_path:
-  patient: /home/workspace/datasets/cprd/cprd2021/*/*_Observation*
-  observation: /home/workspace/datasets/cprd/cprd2021/*/*_Patient*
+  observation: /home/workspace/datasets/cprd/cprd2021/*/*_Observation*
+  patient: /home/workspace/datasets/cprd/cprd2021/*/*_Patient*
   problem: /home/workspace/datasets/cprd/cprd2021/*/*_Problem*
   drug_issue: /home/workspace/datasets/cprd/cprd2021/*/*_DrugIssue*
   practice:  /home/workspace/datasets/cprd/cprd2021/*/*_Practice*

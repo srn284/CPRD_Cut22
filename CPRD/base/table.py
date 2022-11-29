@@ -12,7 +12,7 @@ class Patient(DataFrame):
 
     def accept_flag(self):
         """select rows with accpt = 1"""
-        return Patient(self.where(self.acceptable == 1))
+        return Patient(self.where((F.col('acceptable')==1)))
 
     def yob_calibration(self):
         """decode yob to regular year"""
@@ -20,7 +20,7 @@ class Patient(DataFrame):
 
     def cvt_tod2date(self):
         """convert tod from string to date"""
-        return Patient(self.withColumn('tod', cvt_str2time(self, 'tod')))
+        return Patient(self.withColumn('regenddate', cvt_str2time(self, 'regenddate')))
 
     def cvt_deathdate2date(self):
         """convert deathdate from string to date"""
@@ -28,7 +28,7 @@ class Patient(DataFrame):
 
     def cvt_crd2date(self):
         """convert crd from string to date"""
-        return Patient(self.withColumn('crd', cvt_str2time(self, 'crd')))
+        return Patient(self.withColumn('regstartdate', cvt_str2time(self, 'regstartdate')))
 
     def get_pracid(self):
         """get pracid from patid inorder to join with practice table"""

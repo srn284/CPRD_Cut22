@@ -53,7 +53,6 @@ def read_txtzip(sc, sqlContext, path):
 
         flat_list = "".join(sl)
         flat_list = flat_list.split('\r\n')
-
         return flat_list
 
     zips = sc.binaryFiles(path)

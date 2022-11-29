@@ -7,7 +7,7 @@ from CPRD.config.utils import cvt_str2time, cvt_datestr2time
 #     return df.withColumnRenamed(old, new)
 from utils.utils import *
 
-DICT2KEEP = load_obj('/home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv')
+DICT2KEEP = load_obj('/home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/Set 21/linkage_coverage_dictv')
 
 class Patient(DataFrame):
     def __init__(self, df):

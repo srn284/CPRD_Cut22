@@ -1,0 +1,35 @@
+task: medication.main
+pyspark:
+  temp: /home/rnshishir/sparkNewT
+  pyspark_env: /home/rnshishir/anaconda3/envs/pyspark37/bin/python3.7
+file_path:
+  patient: /home/workspace/datasets/cprd/cprd2021/*/*_Observation*
+  observation: /home/workspace/datasets/cprd/cprd2021/*/*_Patient*
+  problem: /home/workspace/datasets/cprd/cprd2021/*/*_Problem*
+  drug_issue: /home/workspace/datasets/cprd/cprd2021/*/*_DrugIssue*
+  practice:  /home/workspace/datasets/cprd/cprd2021/*/*_Practice*
+  consultation: /home/workspace/datasets/cprd/cprd2021/*/*_Consultation*
+  staff: /home/workspace/datasets/cprd/cprd2021/*/*_Staff*
+  diagnosis_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hesae_diagnosis_20_095_DM.txt
+  hes_death: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/death_patient_20_095_DM.txt
+  eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
+  entity:
+  med2read: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/DiseaseCodes/medical.txt
+  read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
+  hes_procedure: /home/workspace/datasets/cprd/cuts/02_cprd2015/2_LinkageFiles/hes_procedures_epi_16_049R.txt
+  prod2bnf: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/ProductCodes/product.txt
+  therapy: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Therapy
+  test: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Test
+  additional: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Additional
+  death: /home/workspace/datasets/cprd/cuts/02_cprd2015/2_LinkageFiles/death_patient_16_049R.txt
+  imd: /home/workspace/datasets/cprd/cprd2015/Linkage_files/16_049R/Results/patient_imd2015_16_049R.txt
+  medicalDict: /home/shared/shishir/MedicalDict/
+
+params:
+  bnf_mapping: true
+  time_range: [1985, 2015]
+save_file: medication.parquet
+
+
+
+

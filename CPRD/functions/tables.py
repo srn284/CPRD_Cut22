@@ -73,7 +73,7 @@ def retrieve_practice(dir, spark):
     :param spark: initialised spark project contains spark.sc, and spark.sqlContext
     :return: practice spark dataframe
     """
-    practice = Practice(read_txtzip(spark.sc, spark.sqlContext, path=dir)).cvt_lcd2date().cvt_uts2date()
+    practice = Practice(read_txtzip(spark.sc, spark.sqlContext, path=dir)).cvt_lcd2date().cvt_uts2date().rmv_badPract()
     return practice
 
 

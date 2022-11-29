@@ -82,7 +82,9 @@ class Practice(DataFrame):
     def intpracid(self):
         return Practice(self.withColumn('pracid', self['pracid'].cast(pyspark.sql.types.IntegerType())))
 
-
+    def rmv_badPract(self):
+        badlist =[20024, 20036, 20091, 20202, 20254, 20389, 20430, 20469, 20487, 20552, 20554, 20734, 20790, 20803, 20868, 20996, 21001, 21078, 21118, 21172, 21173, 21277, 21334, 21390, 21444, 21451, 21553, 21558, 21585]
+        return Practice(self.where(~F.col('pracid') .isin( badlist)))
 class Diagnosis(DataFrame):
     def __init__(self, df):
         super(self.__class__, self).__init__(df._jdf, df.sql_ctx)

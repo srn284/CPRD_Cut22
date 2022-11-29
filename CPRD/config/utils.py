@@ -18,6 +18,14 @@ def check_time(df, col, time_a=1985, time_b=2016):
     df = df.filter(F.col('Y') <= time_b).drop('Y')
     return df
 
+def cvt_datestr2time(df, col, year_first=True):
+    """
+    convert column from string to date type
+
+    format: 1993/01/07
+    """
+    return F.to_date(df[col] ,"dd/mm/yyyy")
+
 
 def cvt_str2time(df, col, year_first=True):
     """

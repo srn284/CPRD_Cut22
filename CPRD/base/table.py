@@ -1,7 +1,7 @@
 import pyspark.sql.functions as F
 from pyspark.sql.dataframe import DataFrame
 import pyspark
-from CPRD.config.utils import cvt_str2time
+from CPRD.config.utils import cvt_str2time, cvt_datestr2time
 # def rename_col(df, old, new):
 #     """rename pyspark dataframe column"""
 #     return df.withColumnRenamed(old, new)
@@ -16,23 +16,23 @@ class Patient(DataFrame):
 
     def yob_calibration(self):
         """decode yob to regular year"""
-        return Patient(self.withColumn('yob', sum([self.yob, 1800]).cast(pyspark.sql.types.IntegerType())))
+        return Patient(self.withColumn('yob', self.yob.cast(pyspark.sql.types.IntegerType())))
 
     def cvt_tod2date(self):
         """convert tod from string to date"""
-        return Patient(self.withColumn('regenddate', cvt_str2time(self, 'regenddate')))
+        return Patient(self.withColumn('regenddate', cvt_datestr2time(self, 'regenddate')))
 
     def cvt_deathdate2date(self):
         """convert deathdate from string to date"""
-        return Patient(self.withColumn('deathdate', cvt_str2time(self, 'deathdate')))
+        return Patient(self.withColumn('cprd_ddate', cvt_datestr2time(self, 'cprd_ddate')))
 
     def cvt_crd2date(self):
         """convert crd from string to date"""
-        return Patient(self.withColumn('regstartdate', cvt_str2time(self, 'regstartdate')))
+        return Patient(self.withColumn('regstartdate', cvt_datestr2time(self, 'regstartdate')))
 
     def get_pracid(self):
         """get pracid from patid inorder to join with practice table"""
-        return Patient(self.withColumn('pracid', self['patid'].substr(-3, 3).cast(pyspark.sql.types.IntegerType())))
+        return Patient(self.withColumn('pracid', self['patid'].cast(pyspark.sql.types.IntegerType())))
 
 
 class Clinical(DataFrame):
@@ -41,7 +41,7 @@ class Clinical(DataFrame):
 
     def cvtEventDate2Time(self):
         """ convert eventdate from strnig to date type"""
-        return Clinical(self.withColumn('eventdate', cvt_str2time(self, 'eventdate')))
+        return Clinical(self.withColumn('eventdate', cvt_datestr2time(self, 'eventdate')))
 
     def rm_eventdate_medcode_empty(self):
         """rm row with empty eventdate or medcode"""
@@ -54,11 +54,11 @@ class Practice(DataFrame):
 
     def cvt_lcd2date(self):
         """convert lcd from string to date"""
-        return Practice(self.withColumn('lcd', cvt_str2time(self, 'lcd')))
+        return Practice(self.withColumn('lcd', cvt_datestr2time(self, 'lcd')))
 
     def cvt_uts2date(self):
         """convert uts from string to date"""
-        return Practice(self.withColumn('uts', cvt_str2time(self, 'uts')))
+        return Practice(self.withColumn('uts', cvt_datestr2time(self, 'uts')))
 
 
 class Diagnosis(DataFrame):
@@ -68,7 +68,7 @@ class Diagnosis(DataFrame):
     def cvt_admidate2date(self):
         """conver admidate from string to date"""
         df = self.withColumn('admidate', F.concat(F.col('admidate').substr(7, 4), F.col('admidate').substr(4,2), F.col('admidate').substr(1, 2)))
-        return Diagnosis(df.withColumn('admidate', cvt_str2time(df, 'admidate')))
+        return Diagnosis(df.withColumn('admidate', cvt_datestr2time(df, 'admidate')))
 
     def icd_rm_dot(self):
         """remove '.' from ICD code"""
@@ -86,7 +86,7 @@ class Hes(DataFrame):
 
     def cvt_string2date(self, col):
         df = self.withColumn(col, F.concat(F.col(col).substr(7, 4), F.col(col).substr(4, 2), F.col(col).substr(1, 2)))
-        return Hes(df.withColumn(col, cvt_str2time(df, col)))
+        return Hes(df.withColumn(col, cvt_datestr2time(df, col)))
 
     def rm_dot(self, col):
         rm_dot = F.udf(lambda x: ''.join(x.split('.')))
@@ -103,7 +103,7 @@ class Therapy(DataFrame):
 
     def cvtEventDate2Time(self):
         """ convert eventdate from strnig to date type"""
-        return Therapy(self.withColumn('eventdate', cvt_str2time(self, 'eventdate')))
+        return Therapy(self.withColumn('eventdate', cvt_datestr2time(self, 'eventdate')))
 
 
 class EHR(DataFrame):

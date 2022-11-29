@@ -24,7 +24,7 @@ def cvt_datestr2time(df, col, year_first=True):
 
     format: 1993/01/07
     """
-    return F.to_date(df[col] ,"dd/mm/yyyy")
+    return F.to_date(df[col] ,"dd/MM/yyyy")
 
 
 def cvt_str2time(df, col, year_first=True):

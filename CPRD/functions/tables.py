@@ -1,4 +1,4 @@
-from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes
+from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes, Consultation
 from CPRD.config.spark import read_txt, read_csv, read_txtzip
 import pyspark.sql.functions as F
 from CPRD.config.utils import cvt_str2time
@@ -18,7 +18,7 @@ def retrieve_patient(dir, spark):
             dir: folder contains patient table in .txt
     """
     patient = Patient(read_txtzip(spark.sc, spark.sqlContext, path=dir)) \
-        .accept_flag().yob_calibration().cvt_crd2date().cvt_tod2date().cvt_deathdate2date().get_pracid().drop('accept')
+        .accept_flag().yob_calibration().cvt_crd2date().cvt_tod2date().cvt_deathdate2date().cvt_pracid().drop('acceptable')
 
     return patient
 
@@ -36,6 +36,19 @@ def retrieve_clinical(dir, spark):
 
     return clinical
 
+
+def retrieve_consultation(dir, spark):
+    """
+    process clinical table in CPRD
+    :param dir:
+    :param spark:
+    :return:
+    """
+
+    consultation = Consultation(read_txtzip(spark.sc, spark.sqlContext, path=dir)).rm_eventdate_medcode_empty() \
+        .cvtEventDate2Time()
+
+    return consultation
 
 def retrieve_hes_diagnoses(dir, spark):
     """

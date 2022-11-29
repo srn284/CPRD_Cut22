@@ -30,9 +30,9 @@ class Patient(DataFrame):
         """convert crd from string to date"""
         return Patient(self.withColumn('regstartdate', cvt_datestr2time(self, 'regstartdate')))
 
-    def get_pracid(self):
+    def cvt_pracid(self):
         """get pracid from patid inorder to join with practice table"""
-        return Patient(self.withColumn('pracid', self['patid'].cast(pyspark.sql.types.IntegerType())))
+        return Patient(self.withColumn('pracid', self['pracid'].cast(pyspark.sql.types.IntegerType())))
 
 
 class Clinical(DataFrame):
@@ -48,6 +48,21 @@ class Clinical(DataFrame):
         return Clinical(self.filter((F.col('eventdate') != '') & (F.col('medcode') != '')))
 
 
+
+class Consultation(DataFrame):
+    def __init__(self, df):
+        super(self.__class__, self).__init__(df._jdf, df.sql_ctx)
+
+    def cvtEventDate2Time(self):
+        """ convert eventdate from strnig to date type"""
+        return Consultation(self.withColumn('eventdate', cvt_datestr2time(self, 'consdate')) .drop('consdate'))
+
+    def rm_eventdate_medcode_empty(self):
+        """rm row with empty eventdate or medcode"""
+        return Consultation(self.filter((F.col('consdate') != '') & (F.col('consmedcodeid') != '')).withColumn('medcode', F.col('consmedcodeid')) .drop('consmedcodeid'))
+
+
+
 class Practice(DataFrame):
     def __init__(self, df):
         super(self.__class__, self).__init__(df._jdf, df.sql_ctx)
@@ -57,8 +72,8 @@ class Practice(DataFrame):
         return Practice(self.withColumn('lcd', cvt_datestr2time(self, 'lcd')))
 
     def cvt_uts2date(self):
-        """convert uts from string to date"""
-        return Practice(self.withColumn('uts', cvt_datestr2time(self, 'uts')))
+        """NOTE: UTS NOT POPULATED IN 2021 CUT -- FOR NOW, SET TO STATIC VALUE!!!"""
+        return Practice(self.drop('uts').withColumn('uts', F.to_date(F.lit('10/10/0001') , 'dd/mm/yyyy')))
 
 
 class Diagnosis(DataFrame):

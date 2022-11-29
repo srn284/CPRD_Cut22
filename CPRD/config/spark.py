@@ -1,4 +1,5 @@
 import os
+import io, zipfile
 import pyspark
 from pyspark.sql import SQLContext
 
@@ -39,7 +40,6 @@ class spark_init(object):
         return sc, sqlContext
 
 
-import io, zipfile
 
 
 def zip_extract(x):

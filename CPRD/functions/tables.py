@@ -133,9 +133,9 @@ def retrieve_death(dir, spark):
     :return: death dataframe
     """
 
-    death = read_txtzip(spark.sc, spark.sqlContext, path=dir)
+    death = read_txt(spark.sc, spark.sqlContext, path=dir)
     death = death.withColumn('dod', cvt_str2time(death, 'dod', year_first=False))
-
+    death = death.withColumn('dod')
     return death
 
 

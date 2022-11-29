@@ -23,6 +23,8 @@ file_path:
   additional: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Additional
   imd: /home/workspace/datasets/cprd/cprd2015/Linkage_files/16_049R/Results/patient_imd2015_16_049R.txt
   medicalDict: /home/shared/shishir/MedicalDict/
+  uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
+
 
 params:
   bnf_mapping: true

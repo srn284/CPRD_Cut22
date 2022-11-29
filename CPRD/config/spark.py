@@ -41,7 +41,6 @@ class spark_init(object):
 
 
 
-
 def read_txtzip(sc, sqlContext, path):
     """read from txt to pyspark dataframe"""
 

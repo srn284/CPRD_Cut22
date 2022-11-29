@@ -42,20 +42,19 @@ class spark_init(object):
 
 
 
-def zip_extract(x):
-    in_memory_data = io.BytesIO(x[1])
-    file_obj = zipfile.ZipFile(in_memory_data, "r")
-    files = [i for i in file_obj.namelist()]
-    sl = [(file_obj.open(file).read()).decode("utf-8") for file in files]
-
-    flat_list = "".join(sl)
-    flat_list = flat_list.split('\r\n')
-
-    return flat_list
-
-
 def read_txtzip(sc, sqlContext, path):
     """read from txt to pyspark dataframe"""
+
+    def zip_extract(x):
+        in_memory_data = io.BytesIO(x[1])
+        file_obj = zipfile.ZipFile(in_memory_data, "r")
+        files = [i for i in file_obj.namelist()]
+        sl = [(file_obj.open(file).read()).decode("utf-8") for file in files]
+
+        flat_list = "".join(sl)
+        flat_list = flat_list.split('\r\n')
+
+        return flat_list
 
     zips = sc.binaryFiles(path)
     files_data = zips.map(zip_extract).flatMap(lambda xs: xs)

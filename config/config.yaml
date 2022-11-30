@@ -19,7 +19,7 @@ file_path:
   med2read: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/DiseaseCodes/medical.txt
   read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
   hes_procedure: /home/workspace/datasets/cprd/cuts/02_cprd2015/2_LinkageFiles/hes_procedures_epi_16_049R.txt
-  prod2bnf: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/ProductCodes/product.txt
+  prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
   therapy: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Therapy
   test: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Test
   additional: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Additional

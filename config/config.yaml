@@ -11,6 +11,8 @@ file_path:
   consultation: /home/workspace/datasets/cprd/cprd2021/*/*_Consultation_*
   staff: /home/workspace/datasets/cprd/cprd2021/*/*_Staff*
   diagnosis_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hes_diagnosis_hosp_20_095_DM.txt
+  proc_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hes_procedures_epi_20_095_DM.txt
+  op_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hesop_clinical_20_095_DM.txt
   death: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/death_patient_20_095_DM.txt
   eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
   entity:
@@ -21,7 +23,7 @@ file_path:
   therapy: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Therapy
   test: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Test
   additional: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Additional
-  imd: /home/workspace/datasets/cprd/cprd2015/Linkage_files/16_049R/Results/patient_imd2015_16_049R.txt
+  imd: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/patient_imd2015_20_095.txt
   medicalDict: /home/shared/shishir/MedicalDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
 

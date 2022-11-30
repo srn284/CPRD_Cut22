@@ -168,3 +168,34 @@ class EHR(DataFrame):
 
     def array_flatten(self, col):
         return EHR(self.withColumn(col, F.flatten(F.col(col))))
+
+
+
+class Proc_HES(DataFrame):
+    def __init__(self, df):
+        super(self.__class__, self).__init__(df._jdf, df.sql_ctx)
+
+    def cvt_admidate2date(self):
+        """conver admidate from string to date"""
+        df = self.withColumn('evdate', cvt_datestr2time(self, 'evdate'))
+
+        return Proc_HES(df)
+
+    def icd_rm_dot(self):
+        """remove '.' from ICD code"""
+        replace = F.udf(lambda x: x.replace('.', ''))
+        return Proc_HES(self.withColumn('ICD', replace('ICD')))
+
+    def rm_date_opcs_empty(self):
+        """remove admidate or icd code is empty"""
+        return Proc_HES(self.filter((F.col('evdate') != '') & (F.col('OPCS') != '')))
+    def hes_apc_timefilter(self):
+        """not all HES records are "acceptable" - only those in a certain time range are acceptable and this function
+        conducts filtering
+        """
+
+        df = self.withColumn('goodstart', F.to_date(F.lit(DICT2KEEP['hes_apc'][0]), 'dd/MM/yyyy')) \
+            .withColumn('goodend', F.to_date(F.lit(DICT2KEEP['hes_apc'][1]), 'dd/MM/yyyy'))
+
+        df = df.filter(F.col('evdate') >= F.col('goodstart')).filter(F.col('evdate') < F.col('goodend'))
+        return Proc_HES(df.drop('goodend').drop('goodstart'))

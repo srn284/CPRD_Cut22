@@ -1,4 +1,4 @@
-from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes, Consultation
+from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes, Consultation, Proc_HES
 from CPRD.config.spark import read_txt, read_csv, read_txtzip
 import pyspark.sql.functions as F
 from CPRD.config.utils import cvt_str2time
@@ -64,6 +64,20 @@ def retrieve_hes_diagnoses(dir, spark):
                                .rm_date_icd_empty().cvt_admidate2date().hes_apc_timefilter(), old='admidate', new='eventdate')
 
     return hes_diagnosis
+
+def retrieve_hes_proc(dir, spark):
+    """
+    process linked diagnoses data from hes
+    :param dir:
+    :param spark:
+    :return: ['patid', "OPCS", "eventdate"]
+    """
+
+    hesproc = rename_col(Proc_HES(read_txt(spark.sc, spark.sqlContext, path=dir))\
+                         .rm_date_opcs_empty().cvt_admidate2date().hes_apc_timefilter(), old='evdate', new='eventdate')
+
+
+    return hesproc
 
 
 def retrieve_practice(dir, spark):

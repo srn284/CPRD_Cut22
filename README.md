@@ -1,4 +1,8 @@
+# Overview
+This package is for the newer cut of CPRD (Aurum). While the functionality of many elements is consistent with previous pyspark-derived packages for CPRD analyses/processing, this package, generally speaking, serves to connect various data sources that CPRD offers in the following way:
+
 # Structure
+
 
 ## requirements to begin usage
 requirements.txt has all the packages required to use and contribute to this repo. Please create a new conda environment (python 3.7) with the function: 

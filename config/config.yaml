@@ -27,7 +27,6 @@ file_path:
   medicalDict: /home/shared/shishir/MedicalDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
 
-
 params:
   bnf_mapping: true
   time_range: [1985, 2015]

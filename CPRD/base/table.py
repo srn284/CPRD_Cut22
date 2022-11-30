@@ -194,6 +194,7 @@ class Proc_HES(DataFrame):
         conducts filtering
         """
 
+
         df = self.withColumn('goodstart', F.to_date(F.lit(DICT2KEEP['hes_apc'][0]), 'dd/MM/yyyy')) \
             .withColumn('goodend', F.to_date(F.lit(DICT2KEEP['hes_apc'][1]), 'dd/MM/yyyy'))
 

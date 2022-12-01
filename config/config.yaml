@@ -15,8 +15,9 @@ file_path:
   op_hes: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hesop_clinical_20_095_DM.txt
   death: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/death_patient_20_095_DM.txt
   eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
-  diseasemap: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary
-  med2read: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/DiseaseCodes/medical.txt
+#  diseasemap: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
+  med2read: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
+#  med2read: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/DiseaseCodes/medical.txt
   read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
   hes_procedure: /home/workspace/datasets/cprd/cuts/02_cprd2015/2_LinkageFiles/hes_procedures_epi_16_049R.txt
   prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt

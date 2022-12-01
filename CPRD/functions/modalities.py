@@ -8,7 +8,7 @@ medications, diagnoses, enttype, bmi, drinking, smoking, bp measurement
 """
 
 
-def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2015), demographics=None, cut4=True, practiceLink=True):
+def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), demographics=None, cut4=True, practiceLink=True):
     """
     retrieve medication
     require patient, practice, therapy from CPRD, and death registration file from NOS, and prod2bnf mapping table
@@ -48,7 +48,7 @@ def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2015), d
     return therapy
 
 
-def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2015), practiceLink=True):
+def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2021), practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -63,7 +63,7 @@ def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duratio
     practice = tables.retrieve_practice(dir=file['practice'], spark=spark)
     demographics = tables.retrieve_demographics(patient=patient, practice=practice, practiceLink=practiceLink)
     death = tables.retrieve_death(dir=file['death'], spark=spark)
-    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark).filter_byobservation()
     hes = tables.retrieve_hes_diagnoses(dir=file['diagnosis_hes'], spark=spark)
 
     # retrieve the start date and end date to retrive records for each patient
@@ -95,7 +95,7 @@ def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duratio
 
     return data
 
-def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2015), demographics=None, practiceLink=True):
+def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2021), demographics=None, practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -118,7 +118,7 @@ def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, du
         time = demographics.select(['patid','startdate','enddate'])
 
 
-    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark).filter_byobservation()
 
 
     # select records between start and end date, which are valid records for usage
@@ -140,7 +140,7 @@ def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, du
 
     return clinical
 
-def retrieve_diagnoses_hes(file, spark, duration=(1985,2015), demographics = None):
+def retrieve_diagnoses_hes(file, spark, duration=(1985,2021), demographics = None):
     """
     file contains all necessary file for processing
     :param file:
@@ -164,7 +164,7 @@ def retrieve_diagnoses_hes(file, spark, duration=(1985,2015), demographics = Non
 
     return hes
 
-def retrieve_by_enttype(file, spark, enttype, duration=(1985, 2015)):
+def retrieve_by_enttype(file, spark, enttype, duration=(1985, 2021)):
     """
     retrieve additional information from additional table using enttype
 
@@ -173,22 +173,17 @@ def retrieve_by_enttype(file, spark, enttype, duration=(1985, 2015)):
     :param duration:
     :return:
     """
+    # for the isin operation ...
+    if type(enttype) is not list:
+        enttype = [enttype]
 
-    additional = tables.retrieve_additional(dir=file['additional'], spark=spark)
-    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)\
-        .select(['patid', 'eventdate', 'adid'])
-
-    clinical =clinical.join(additional,(clinical.patid == additional.patid) & (clinical.adid == additional.adid), 'inner')\
-        .drop(additional.patid).drop(additional.adid)\
-        .select(['patid', 'eventdate', 'enttype', 'data1', 'data2', 'data3', 'data4', 'data5', 'data6', 'data7'])\
-        .dropDuplicates()
-
-    clinical = clinical.filter(F.col('enttype') == enttype)
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)
+    clinical = clinical.filter(F.col('medcode').isin(enttype))
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
     return clinical
 
 
-def retrieve_bmi(file, spark, duration=(1985, 2015), usable_range=(16, 50)):
+def retrieve_bmi(file, spark, duration=(1985, 2021), usable_range=(16, 50)):
     """
     retrive bmi from additional
     :param file:
@@ -198,17 +193,15 @@ def retrieve_bmi(file, spark, duration=(1985, 2015), usable_range=(16, 50)):
     """
 
 
+    bmi = retrieve_by_enttype(file, spark, enttype='100716012', duration=duration)
+    bmi = bmi.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('bmi'))
+    bmi = bmi.where((F.col('bmi') > usable_range[0]) & (F.col('bmi') < usable_range[1]))
+    bmi = bmi.filter((F.col('bmi').isNotNull()))
 
-    bmi = retrieve_by_enttype(file, spark, enttype=13, duration=duration)
-    bmi = bmi.groupby(['patid', 'eventdate'])\
-        .agg(F.mean('data3').alias('BMI')) \
-        .where((F.col('BMI') > usable_range[0]) & (F.col('BMI') < usable_range[1]))
-
-    bmi = bmi.filter((F.col('BMI').isNotNull()) )
     return bmi
 
-
-def retrieve_drinking_status(file, spark, duration=(1985, 2015)):
+def retrieve_drinking_status(file, spark, duration=(1985, 2021)):
     """
     get the drinking status table
     :param file:
@@ -223,7 +216,7 @@ def retrieve_drinking_status(file, spark, duration=(1985, 2015)):
     return drink
 
 
-def retrieve_smoking_status(file, spark, duration=(1985, 2015)):
+def retrieve_smoking_status(file, spark, duration=(1985, 2021)):
     """
     get the smoking status
     :param file:
@@ -237,7 +230,7 @@ def retrieve_smoking_status(file, spark, duration=(1985, 2015)):
     return smoke
 
 
-def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2015), usable_range=(50, 140)):
+def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2021), usable_range=(10, 140)):
     """
     get the bp measurement diastolic pressure (low number )
     :param file:
@@ -246,17 +239,15 @@ def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2015), usable
     :return: ['patid', 'eventdate', 'enttype', 'diastolic', '
     lic', 'data3', 'data4', 'data5', 'data6', 'data7']
     """
-    bp = retrieve_by_enttype(file, spark, enttype=1, duration=duration)
-    bp = bp.groupby(['patid', 'eventdate'])\
-        .agg(F.first('data1').alias('diastolic'))
-
-    bp = bp        .where((F.col('diastolic') > usable_range[0]) & (F.col('diastolic') < usable_range[1]))
-
+    bp = retrieve_by_enttype(file, spark, enttype='619931000006119', duration=duration)
+    bp = bp.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('diastolic'))
+    bp = bp.where((F.col('diastolic') > usable_range[0]) & (F.col('diastolic') < usable_range[1]))
     bp = bp.filter((F.col('diastolic').isNotNull()))
 
     return bp
 
-def retrieve_systolic_bp_measurement(file, spark, duration=(1985, 2015), usable_range=(80, 200)):
+def retrieve_systolic_bp_measurement(file, spark, duration=(1985, 2021), usable_range=(50, 300)):
     """
     get the bp measurement, systolic pressure (high number)
     :param file:
@@ -264,18 +255,47 @@ def retrieve_systolic_bp_measurement(file, spark, duration=(1985, 2015), usable_
     :param duration:
     :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
     """
-    bp = retrieve_by_enttype(file, spark, enttype=1, duration=duration)
+    bp = retrieve_by_enttype(file, spark, enttype='114311000006111', duration=duration)
     bp = bp.groupby(['patid', 'eventdate'])\
-        .agg( F.first('data2').alias('systolic'))
-
-
-    bp = bp        .where((F.col('systolic') > usable_range[0]) & (F.col('systolic') < usable_range[1]))
-
+        .agg( F.mean('value').alias('systolic'))
+    bp = bp.where((F.col('systolic') > usable_range[0]) & (F.col('systolic') < usable_range[1]))
     bp = bp.filter( (F.col('systolic').isNotNull()))
 
     return bp
 
 
+
+def retrieve_creatinine_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 250)):
+    """
+    get the creat measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    """
+    creat = retrieve_by_enttype(file, spark, enttype='380389013', duration=duration)
+    creat = creat.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('creatinine'))
+    creat = creat.where((F.col('creatinine') > usable_range[0]) & (F.col('creatinine') < usable_range[1]))
+    creat = creat.filter( (F.col('creatinine').isNotNull()))
+
+    return creat
+
+def retrieve_eGFR_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 250)):
+    """
+    get the egfr measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    """
+    egfr = retrieve_by_enttype(file, spark, enttype=['1942831000006114','976481000006110','133205018'], duration=duration)
+    egfr = egfr.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('eGFR'))
+    egfr = egfr.where((F.col('eGFR') > usable_range[0]) & (F.col('eGFR') < usable_range[1]))
+    egfr = egfr.filter( (F.col('eGFR').isNotNull()))
+
+    return egfr
 
 def retrieve_imd(file, spark):
     """
@@ -286,15 +306,15 @@ def retrieve_imd(file, spark):
     :return: imd table
     """
     imd = tables.retrieve_additional(dir=file['imd'], spark=spark)
-    imd = imd.select(['patid', 'imd2015_5']).filter(imd.imd2015_5 !='') \
-        .filter((F.col('imd2015_5').isNotNull()))
+    imd = imd.select(['patid', 'imd2021_5']).filter(imd.imd2021_5 !='') \
+        .filter((F.col('imd2021_5').isNotNull()))
 
 
     return imd
 
 
 
-def retrieve_test(file, spark, duration=(1985, 2015)):
+def retrieve_test(file, spark, duration=(1985, 2021)):
     """
     retrieve test
     :param file: file load from yaml contains dir for all necessary files
@@ -332,7 +352,7 @@ def retrieve_test(file, spark, duration=(1985, 2015)):
 
 
 
-def retrieve_lab_test(file, spark, duration=(1985, 2015), demographics=None, start_col='startdate',
+def retrieve_lab_test(file, spark, duration=(1985, 2021), demographics=None, start_col='startdate',
                        end_col='enddate'):
     """
     retrieve medication
@@ -366,7 +386,7 @@ def retrieve_lab_test(file, spark, duration=(1985, 2015), demographics=None, sta
     return test
 
 
-def retrieve_procedure(file, spark, duration=(1985, 2015), demographics=None, start_col='startdate', end_col='enddate'):
+def retrieve_procedure(file, spark, duration=(1985, 2021), demographics=None, start_col='startdate', end_col='enddate'):
     """
     retrieve medication
     require patient, practice, therapy from CPRD, and death registration file from NOS, and prod2bnf mapping table

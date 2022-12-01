@@ -34,7 +34,7 @@ def retrieve_clinical(dir, spark):
     """
 
     clinical = Clinical(read_txtzip(spark.sc, spark.sqlContext, path=dir)).rm_eventdate_medcode_empty() \
-        .cvtEventDate2Time().filter_byobservation()
+        .cvtEventDate2Time()
 
     return clinical
 
@@ -188,8 +188,10 @@ def retrieve_med2read_map(dir, spark):
     :return: dataframe [ 'medcode',  'readcode']
     """
 
-    med2read = read_txt(spark.sc, spark.sqlContext, dir) \
+    med2read = read_txt(spark.sc, spark.sqlContext, dir).withColumnRenamed('MedCodeId', 'medcode').withColumnRenamed('CleansedReadCode', 'readcode') \
         .withColumn('medcode', F.col('medcode').cast('string')).select(['medcode', 'readcode'])
+
+    med2read = med2read.filter(F.col('readcode')!='')
 
     return med2read
 

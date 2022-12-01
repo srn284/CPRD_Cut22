@@ -49,7 +49,7 @@ class Clinical(DataFrame):
 
     def rm_eventdate_medcode_empty(self):
         """rm row with empty eventdate or medcode"""
-        return Clinical(self.filter((F.col('obsdate') != '') & (F.col('medcodeid') != '')).withColumn('medcode', F.col('medcodeid')) .drop('medcodeid'))
+        return Clinical(self.filter((F.col('obsdate') != '') & (F.col('medcodeid') != '')).withColumnRenamed ('medcodeid', 'medcode') )
 
     def filter_byobservation(self):
         """remove the rows which are not observations"""

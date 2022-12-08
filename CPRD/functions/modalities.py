@@ -40,7 +40,7 @@ def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), d
         .where((F.col('eventdate') > F.col('startdate')) & (F.col('eventdate') < F.col('enddate'))).drop('deathdate')
 
     if bnf_mapping:
-        crossmap = tables.retrieve_bnf_prod_crossmap(dir=file['prod2bnf'], spark=spark, cut4=cut4)
+        crossmap = tables.retrieve_bnf_prod_crossmap(dir=file['prod2bnf'], spark=spark)
         therapy = merge.bnf_mapping(crossmap=crossmap, therapy=therapy)
 
     therapy = check_time(therapy, 'eventdate', time_a=duration[0], time_b=duration[1])

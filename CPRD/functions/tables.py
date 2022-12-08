@@ -159,7 +159,7 @@ def retrieve_death(dir, spark):
     return death.drop('goodend').drop('goodstart')
 
 
-def retrieve_bnf_prod_crossmap(dir, spark, cut4= True):
+def retrieve_bnf_prod_crossmapLEGACY(dir, spark, cut4= True):
     """
     get cross map for bnf mapping
 
@@ -179,6 +179,22 @@ def retrieve_bnf_prod_crossmap(dir, spark, cut4= True):
 
     return crossmap
 
+
+def retrieve_bnf_prod_crossmap(dir, spark):
+    """
+    get cross map for bnf mapping
+
+    :param dir: prod2bnf mapping
+    :param spark: pyspark object
+    :return: crossmap dataframe
+    """
+
+    extract_bnf = F.udf(lambda x:x.replace(' ', '').strip())
+
+    crossmap = read_txt(spark.sc, spark.sqlContext, path=dir).select('ProdCodeId', 'BNFChapter').withColumnRenamed('ProdCodeId','prodcode') .withColumnRenamed('BNFChapter','bnfcode') \
+        .where((F.col("bnfcode") != '00000000')).where((F.col("bnfcode") != '')).withColumn('code', extract_bnf('bnfcode'))
+
+    return crossmap
 
 def retrieve_med2read_map(dir, spark):
     """

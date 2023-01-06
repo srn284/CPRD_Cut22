@@ -6,7 +6,7 @@ file_path:
   clinical: /home/workspace/datasets/cprd/cprd2021/*/*_Observation_*
   patient: /home/workspace/datasets/cprd/cprd2021/*/*_Patient_*
   problem: /home/workspace/datasets/cprd/cprd2021/*/*_Problem_*
-  medications: /home/workspace/datasets/cprd/cprd2021/*/*_DrugIssue_*
+  therapy: /home/workspace/datasets/cprd/cprd2021/*/*_DrugIssue_*
   practice:  /home/workspace/datasets/cprd/cprd2021/*/*_Practice_*
   consultation: /home/workspace/datasets/cprd/cprd2021/*/*_Consultation_*
   staff: /home/workspace/datasets/cprd/cprd2021/*/*_Staff*
@@ -17,20 +17,13 @@ file_path:
   eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
 #  diseasemap: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
   med2read: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
-#  med2read: /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/DiseaseCodes/medical.txt
-  read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
-  hes_procedure: /home/workspace/datasets/cprd/cuts/02_cprd2015/2_LinkageFiles/hes_procedures_epi_16_049R.txt
-  prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
-  therapy: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Therapy
-  test: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Test
-  additional: /home/workspace/datasets/cprd/cuts/02_cprd2015/1_RawData/Additional
-  imd: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/patient_imd2015_20_095.txt
   medicalDict: /home/shared/shishir/MedicalDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
+  prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
 
 params:
   bnf_mapping: true
-  time_range: [1985, 2015]
+  time_range: [1985, 2022]
 save_file: medication.parquet
 
 

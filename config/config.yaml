@@ -21,6 +21,7 @@ file_path:
   medicalDict: /home/shared/shishir/MedicalDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
   prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
+  prod2bnf_vtm: /home/shared/shishir/AurumOut/Dicts/meds_medcount_full.parquet
   read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
   sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
 

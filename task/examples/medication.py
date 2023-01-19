@@ -8,7 +8,7 @@ def main(params, spark):
     file = params['file_path']
     data_params = params['params']
 
-    medication = retrieve_medications(file, spark, bnf_mapping=data_params['bnf_mapping'], duration=data_params['time_range'])
+    medication = retrieve_medications(file, spark, mapping=data_params.exposure[0], duration=data_params['time_range'])
 
     # remove none and duplicate
     create_folder(params['save_path'])

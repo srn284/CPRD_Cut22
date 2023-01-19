@@ -196,6 +196,24 @@ def retrieve_bnf_prod_crossmap(dir, spark):
 
     return crossmap
 
+
+
+def retrieve_bnfvtm_prod_crossmap(dir, spark):
+    """
+    get cross map for bnf mapping
+
+    :param dir: prod2bnf mapping
+    :param spark: pyspark object
+    :return: crossmap dataframe
+    """
+
+    extract_bnf = F.udf(lambda x:x.replace(' ', '').strip())
+
+    crossmap = read_parquet(spark.sqlContext, dir).select('ProdCodeId', 'target').withColumnRenamed('ProdCodeId','prodcode') .withColumnRenamed('target','bnfvtmcode') \
+        .where((F.col("bnfvtmcode") != '00000000')).where((F.col("bnfvtmcode") != '')).withColumn('code', extract_bnf('bnfvtmcode'))
+
+    return crossmap
+
 def retrieve_med2read_map(dir, spark):
     """
     read medcode to read code mapping from file

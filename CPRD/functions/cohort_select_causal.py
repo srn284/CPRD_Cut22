@@ -153,7 +153,7 @@ class CohortRandomCut(CausalCohort):
         if sourceT is None:
             if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
 
-                sourceTable = retrieve_medications(file, spark, bnf_mapping=(self.exposure[0] == 'bnf'),
+                sourceTable = retrieve_medications(file, spark,mapping=self.exposure[0],
                                                    duration=duration,
                                                    demographics=demographics)
                 #             print((sourceTable.count()))
@@ -163,7 +163,7 @@ class CohortRandomCut(CausalCohort):
                     coll = 'prodcode'
 
             elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark, read_mapping=(self.exposure[0] == 'read'),
+                sourceTable = retrieve_diagnoses_cprd(file, spark, mapping=self.exposure[0],
                                                       duration=duration, demographics=demographics)
                 tempcodes = self.exposure[1]
                 coll = 'readcode'
@@ -309,7 +309,7 @@ class CohortSoftCut(CausalCohort):
         if sourceT is None:
             if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
 
-                sourceTable = retrieve_medications(file, spark, bnf_mapping=(self.exposure[0] == 'bnf'),
+                sourceTable = retrieve_medications(file, spark, mapping=self.exposure[0],
                                                    duration=duration,
                                                    demographics=demographics)
                 #             print((sourceTable.count()))
@@ -319,7 +319,7 @@ class CohortSoftCut(CausalCohort):
                     coll = 'prodcode'
 
             elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark, read_mapping=(self.exposure[0] == 'read'),
+                sourceTable = retrieve_diagnoses_cprd(file, spark,mapping=self.exposure[0],
                                                       duration=duration, demographics=demographics)
                 tempcodes = self.exposure[1]
                 coll = 'readcode'
@@ -541,7 +541,7 @@ class CohortHardCut(CausalCohort):
         if sourceT is None:
             if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
 
-                sourceTable = retrieve_medications(file, spark, bnf_mapping=(self.exposure[0] == 'bnf'),
+                sourceTable = retrieve_medications(file, spark, mapping=self.exposure[0],
                                                    duration=duration,
                                                    demographics=demographics)
                 #             print((sourceTable.count()))
@@ -551,7 +551,7 @@ class CohortHardCut(CausalCohort):
                     coll = 'prodcode'
 
             elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark, read_mapping=(self.exposure[0] == 'read'),
+                sourceTable = retrieve_diagnoses_cprd(file, spark, mapping=self.exposure[0],
                                                       duration=duration, demographics=demographics)
                 tempcodes = self.exposure[1]
                 coll = 'readcode'

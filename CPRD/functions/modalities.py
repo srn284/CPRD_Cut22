@@ -8,7 +8,7 @@ medications, diagnoses, enttype, bmi, drinking, smoking, bp measurement
 """
 
 
-def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), demographics=None, cut4=True, practiceLink=True):
+def retrieve_medications(file, spark, mapping='bnfvtm', duration=(1985, 2021), demographics=None, cut4=True, practiceLink=True):
     """
     retrieve medication
     require patient, practice, therapy from CPRD, and death registration file from NOS, and prod2bnf mapping table
@@ -39,7 +39,10 @@ def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), d
     therapy = therapy.join(time, 'patid', 'inner')\
         .where((F.col('eventdate') > F.col('startdate')) & (F.col('eventdate') < F.col('enddate'))).drop('deathdate')
 
-    if bnf_mapping:
+    if  mapping=='bnfvtm':
+        crossmap = tables.retrieve_bnfvtm_prod_crossmap(dir=file['prod2bnf_vtm'], spark=spark)
+        therapy = merge.bnf_mapping(crossmap=crossmap, therapy=therapy)
+    elif mapping=='bnf':
         crossmap = tables.retrieve_bnf_prod_crossmap(dir=file['prod2bnf'], spark=spark)
         therapy = merge.bnf_mapping(crossmap=crossmap, therapy=therapy)
 
@@ -48,7 +51,7 @@ def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), d
     return therapy
 
 
-def retrieve_diagnoses(file, spark, sno_mapping = True,  read_mapping=False, icd_mapping=True, duration=(1985,2021), practiceLink=True):
+def retrieve_diagnoses(file, spark, mapping ='sno2icd' ,  duration=(1985,2021), practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -78,20 +81,20 @@ def retrieve_diagnoses(file, spark, sno_mapping = True,  read_mapping=False, icd
     hes = cprd_table.Hes(hes.select(['patid', 'eventdate', 'ICD']).withColumn('source', F.lit('HES'))).rm_dot('ICD')
 
 
-    if sno_mapping:
+    if 'sno' in mapping:
         med2sno = tables.retrieve_med2sno_map(dir=file['med2sno'], spark=spark)
         clinical = merge.med2sno_mapping(med2sno, clinical)
-        if icd_mapping:
+        if mapping =='sno2icd':
             sno2icd = tables.retrieve_sno2icd_map(dir=file['sno2icd'], spark=spark)
             clinical = merge.sno2icd_mapping(sno2icd, clinical)
             clinical = clinical.withColumn('ICD', F.explode('ICD'))
     # map medcode to read code
-    elif read_mapping:
+    elif 'read' in mapping:
         med2read = tables.retrieve_med2read_map(dir=file['med2read'], spark=spark)
         clinical = merge.med2read_mapping(med2read, clinical)
 
     # map read to icd-10
-        if icd_mapping:
+        if mapping =='read2icd':
             read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
             clinical = merge.read2icd_mapping(read2icd, clinical)
 
@@ -103,7 +106,7 @@ def retrieve_diagnoses(file, spark, sno_mapping = True,  read_mapping=False, icd
 
     return data
 
-def retrieve_diagnoses_cprd(file, spark,sno_mapping = True,  read_mapping=False, icd_mapping=True, duration=(1985,2021), demographics=None, practiceLink=True):
+def retrieve_diagnoses_cprd(file, spark, mapping ='sno2icd' , duration=(1985,2021), demographics=None, practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -145,23 +148,22 @@ def retrieve_diagnoses_cprd(file, spark,sno_mapping = True,  read_mapping=False,
     #     read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
     #     clinical = merge.read2icd_mapping(read2icd, clinical)
 
-    if sno_mapping:
+    if 'sno' in mapping:
         med2sno = tables.retrieve_med2sno_map(dir=file['med2sno'], spark=spark)
         clinical = merge.med2sno_mapping(med2sno, clinical)
-        if icd_mapping:
+        if mapping == 'sno2icd':
             sno2icd = tables.retrieve_sno2icd_map(dir=file['sno2icd'], spark=spark)
             clinical = merge.sno2icd_mapping(sno2icd, clinical)
             clinical = clinical.withColumn('ICD', F.explode('ICD'))
     # map medcode to read code
-    elif read_mapping:
+    elif 'read' in mapping:
         med2read = tables.retrieve_med2read_map(dir=file['med2read'], spark=spark)
         clinical = merge.med2read_mapping(med2read, clinical)
 
-    # map read to icd-10
-        if icd_mapping:
+        # map read to icd-10
+        if mapping == 'read2icd':
             read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
             clinical = merge.read2icd_mapping(read2icd, clinical)
-
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
 
     return clinical

@@ -63,6 +63,21 @@ def med2read_mapping(crossmap, clinical):
     return cprd
 
 
+def med2sno_mapping(crossmap, clinical):
+    """
+    cross map med code in clinical table to read code
+    :param crossmap:
+    :param clinical:
+    :return: ['patid', 'eventdate', 'medcode', 'source', 'snomed']
+    """
+
+    cprd = clinical.join(crossmap, 'medcode', 'left') \
+        .select(['patid', 'eventdate', 'medcode', 'snomed', 'source'])
+
+    # keep all records that belong to diagnoses
+    cprd = cprd.select(['patid', 'eventdate', 'medcode', 'snomed', 'source'])
+
+    return cprd
 def read2icd_mapping(crossmap, clinical):
     """
     cross map read code to icd code
@@ -78,7 +93,20 @@ def read2icd_mapping(crossmap, clinical):
     clinical = clinical.join(crossmap, 'read', 'left').drop('read')
 
     return clinical
+def sno2icd_mapping(crossmap, clinical):
+    """
+    cross map read code to icd code
+    :param crossmap: ['read', 'ICD']
+    :param clinical: ['patid', 'eventdate', 'medcode', 'source', 'snomed']
+    :return: ['patid', 'eventdate', 'medcode', 'source', 'snomed', 'ICD']
+    """
 
+    # get read code first 5 characters for mapping
+
+    # join crossmap
+    clinical = clinical.join(crossmap, 'snomed', 'left')
+
+    return clinical
 
 def merge_hes_clinical(hes, clinical):
     """

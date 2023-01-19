@@ -1,5 +1,5 @@
 from CPRD.base.table import Patient,Practice,Clinical, Diagnosis, Therapy, Hes, Consultation, Proc_HES
-from CPRD.config.spark import read_txt, read_csv, read_txtzip
+from CPRD.config.spark import read_txt, read_csv, read_txtzip, read_parquet
 import pyspark.sql.functions as F
 from CPRD.config.utils import cvt_str2time
 from CPRD.config.utils import rename_col
@@ -211,6 +211,20 @@ def retrieve_med2read_map(dir, spark):
 
     return med2read
 
+def retrieve_med2sno_map(dir, spark):
+    """
+    read medcode to read code mapping from file
+    :param dir: path to med2read map
+    :param spark:
+    :return: dataframe [ 'medcode',  'readcode']
+    """
+
+    med2sno = read_txt(spark.sc, spark.sqlContext, dir).withColumnRenamed('MedCodeId', 'medcode').withColumnRenamed('SnomedCTConceptId', 'snomed') \
+        .withColumn('medcode', F.col('medcode').cast('string')).select(['medcode', 'snomed'])
+
+    med2sno = med2sno.filter(F.col('snomed')!='')
+
+    return med2sno
 
 def retrieve_read2icd_map(dir, spark):
     """
@@ -229,6 +243,19 @@ def retrieve_read2icd_map(dir, spark):
     return read2icd
 
 
+def retrieve_sno2icd_map(dir, spark):
+    """
+    preprocessed read2icd map
+    :param dir:
+    :param spark:
+    :return: ['read', 'ICD']
+    """
+
+    sno2icd = read_parquet(spark.sqlContext, dir) \
+        .select(['snomed', 'icd10code']).withColumn('snomed', F.col('snomed').cast('string'))
+    sno2icd = sno2icd.withColumnRenamed('icd10code', 'ICD')
+
+    return sno2icd
 def retrieve_additional(dir, spark):
     additional = read_txtzip(spark.sc, spark.sqlContext, dir)
     return additional

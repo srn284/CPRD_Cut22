@@ -17,9 +17,12 @@ file_path:
   eligible: /home/workspace/datasets/cprd/cprd2021/linkage_eligibility_Set21/linkage_eligibility*
 #  diseasemap: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
   med2read: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
+  med2sno: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
   medicalDict: /home/shared/shishir/MedicalDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
   prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
+  read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
+  sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
 
 params:
   bnf_mapping: true

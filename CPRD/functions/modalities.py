@@ -48,7 +48,7 @@ def retrieve_medications(file, spark, bnf_mapping=True, duration=(1985, 2021), d
     return therapy
 
 
-def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2021), practiceLink=True):
+def retrieve_diagnoses(file, spark, sno_mapping = True,  read_mapping=False, icd_mapping=True, duration=(1985,2021), practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -77,15 +77,23 @@ def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duratio
     clinical = clinical.select(['patid', 'eventdate', 'medcode']).withColumn('source', F.lit('CPRD'))
     hes = cprd_table.Hes(hes.select(['patid', 'eventdate', 'ICD']).withColumn('source', F.lit('HES'))).rm_dot('ICD')
 
+
+    if sno_mapping:
+        med2sno = tables.retrieve_med2sno_map(dir=file['med2sno'], spark=spark)
+        clinical = merge.med2sno_mapping(med2sno, clinical)
+        if icd_mapping:
+            sno2icd = tables.retrieve_sno2icd_map(dir=file['sno2icd'], spark=spark)
+            clinical = merge.sno2icd_mapping(sno2icd, clinical)
+            clinical = clinical.withColumn('ICD', F.explode('ICD'))
     # map medcode to read code
-    if read_mapping:
+    elif read_mapping:
         med2read = tables.retrieve_med2read_map(dir=file['med2read'], spark=spark)
         clinical = merge.med2read_mapping(med2read, clinical)
 
     # map read to icd-10
-    if icd_mapping:
-        read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
-        clinical = merge.read2icd_mapping(read2icd, clinical)
+        if icd_mapping:
+            read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
+            clinical = merge.read2icd_mapping(read2icd, clinical)
 
     # merge cprd and hes
     data = merge.merge_hes_clinical(hes, clinical)
@@ -95,7 +103,7 @@ def retrieve_diagnoses(file, spark, read_mapping=True, icd_mapping=True, duratio
 
     return data
 
-def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, duration=(1985,2021), demographics=None, practiceLink=True):
+def retrieve_diagnoses_cprd(file, spark,sno_mapping = True,  read_mapping=False, icd_mapping=True, duration=(1985,2021), demographics=None, practiceLink=True):
     """
     file contains all necessary file for processing
     :param file:
@@ -128,14 +136,32 @@ def retrieve_diagnoses_cprd(file, spark, read_mapping=True, icd_mapping=True, du
     # process CPRD
     clinical = clinical.select(['patid', 'eventdate', 'medcode']).withColumn('source', F.lit('CPRD'))
     # map medcode to read code
-    if read_mapping:
+    # if read_mapping:
+    #     med2read = tables.retrieve_med2read_map(dir=file['med2read'], spark=spark)
+    #     clinical = merge.med2read_mapping(med2read, clinical)
+    #
+    # # map read to icd-10
+    # if icd_mapping:
+    #     read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
+    #     clinical = merge.read2icd_mapping(read2icd, clinical)
+
+    if sno_mapping:
+        med2sno = tables.retrieve_med2sno_map(dir=file['med2sno'], spark=spark)
+        clinical = merge.med2sno_mapping(med2sno, clinical)
+        if icd_mapping:
+            sno2icd = tables.retrieve_sno2icd_map(dir=file['sno2icd'], spark=spark)
+            clinical = merge.sno2icd_mapping(sno2icd, clinical)
+            clinical = clinical.withColumn('ICD', F.explode('ICD'))
+    # map medcode to read code
+    elif read_mapping:
         med2read = tables.retrieve_med2read_map(dir=file['med2read'], spark=spark)
         clinical = merge.med2read_mapping(med2read, clinical)
 
     # map read to icd-10
-    if icd_mapping:
-        read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
-        clinical = merge.read2icd_mapping(read2icd, clinical)
+        if icd_mapping:
+            read2icd = tables.retrieve_read2icd_map(dir=file['read2icd'], spark=spark)
+            clinical = merge.read2icd_mapping(read2icd, clinical)
+
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
 
     return clinical

@@ -24,7 +24,7 @@ file_path:
   prod2bnf_vtm: /home/shared/shishir/AurumOut/Dicts/meds_medcount_full.parquet
   read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
   sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
-  PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiledPheno_27Jan2023
+  PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiled_MD_30Jan2023
 
 params:
   bnf_mapping: true

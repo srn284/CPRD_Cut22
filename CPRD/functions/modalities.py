@@ -1,6 +1,7 @@
 import pyspark.sql.functions as F
 from CPRD.functions import tables, merge
 from CPRD.config.utils import *
+from CPRD.config.spark import *
 import CPRD.base.table as cprd_table
 import pandas as pd
 """
@@ -333,10 +334,10 @@ def retrieve_imd(file, spark):
     :param spark: spark object
     :return: imd table
     """
-    imd = tables.retrieve_additional(dir=file['imd'], spark=spark)
-    imd = imd.select(['patid', 'imd2021_5']).filter(imd.imd2021_5 !='') \
-        .filter((F.col('imd2021_5').isNotNull()))
 
+    imd = read_txt(spark.sc, spark.sqlContext, path=file['imd'])
+    imd = imd.select(['patid', 'imd2015_5']).filter(imd.imd2021_5 !='') \
+        .filter((F.col('imd2015_5').isNotNull()))
 
     return imd
 

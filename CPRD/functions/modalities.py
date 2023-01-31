@@ -292,6 +292,21 @@ def retrieve_systolic_bp_measurement(file, spark, duration=(1985, 2021), usable_
 
     return bp
 
+def retrieve_heartrate_measurement(file, spark, duration=(1985, 2021), usable_range=(30,250)):
+    """
+    get the bp measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    """
+    hr = retrieve_by_enttype(file, spark, enttype='487210016', duration=duration)
+    hr = hr.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('heartrate'))
+    hr = hr.where((F.col('heartrate') > usable_range[0]) & (F.col('heartrate') < usable_range[1]))
+    hr = hr.filter( (F.col('heartrate').isNotNull()))
+
+    return hr
 
 
 def retrieve_creatinine_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 250)):

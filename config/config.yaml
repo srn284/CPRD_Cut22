@@ -18,12 +18,13 @@ file_path:
 #  diseasemap: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
   med2read: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
   med2sno: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISMedicalDictionary.txt
-  medicalDict: /home/shared/shishir/MedicalDict/
+  medicalDict: /home/shared/shishir/AurumOut/Dicts/MedicalDictionary/CompiledDict/
   uptodateDict: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/Documentation/*/linkage_coverage_dictv.pkl
   prod2bnf: /home/workspace/datasets/cprd/cprd2021/202102_lookups/202102_EMISProductDictionary.txt
   prod2bnf_vtm: /home/shared/shishir/AurumOut/Dicts/meds_medcount_full.parquet
   read2icd:  /home/workspace/datasets/cprd/cuts/02_cprd2015/3_Lookups/final_mapping.csv
   sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
+  imd: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/patient_imd2015_20_095.txt
   PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiled_MD_30Jan2023
 
 params:

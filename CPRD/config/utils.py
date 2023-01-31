@@ -3,12 +3,21 @@ import pyspark.sql.functions as F
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 import numpy as np
+import _pickle as pickle
 import glob
 import pandas as pd
 def rename_col(df, old, new):
     """rename pyspark dataframe column"""
     return df.withColumnRenamed(old, new)
 
+def save_obj(obj, name):
+    with open(name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def load_obj(name):
+    with open(name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 def check_time(df, col, time_a=1985, time_b=2016):
     """keep data with date between a and b"""
@@ -134,39 +143,27 @@ def antiJoin(df1, df2, equiv, badcode):
     df1 = df1.join(df2,equiv, 'left').where(F.col(badcode).isNull())
     return df1
 
-def MedicationDictionaryCompilerHelper(file,spark):
-    """for scraping from the medication files (bristol uni) """
 
-    medDict = {}
-    for filepath in glob.iglob(file['medicalDict'] + 'BNF/prod*'):
-        file = pd.read_table(filepath)
-        name = filepath.split("/")[-1].split(".")[0][5:]
-        colbnf = [col for col in file.columns if 'bnf' in col][0]
-        colprod = [col for col in file.columns if 'prod' in col][0]
+def mergeDict(elementalDict):
 
-        #   extract BNF codes
-        bnf = file[colbnf].dropna().unique()
-        bnf = [str(x) for x in bnf if x != '0' and x != 0]
-        bnfOUT = []
-        #     translate to the 0000/0000/0000 style of bnf coding
-        for x in bnf:
-            if '/' in x:
-                y = x.split('/')
-                bnfOUT.append("/".join([z[:4] for z in y]))
-            else:
-                bnfOUT.append(x[:4])
-        bnfOUT = list(set(bnfOUT))
+    """for merging dictionaries with multiple common nested keys"""
 
-        #   extract prod codes
-        prod = file[colprod].dropna().unique()
-        prod = [str(int(x)) for x in prod if x != '0' and x != 0]
-        prod = list(set(prod))
+    uniquekeys = [list(elementalDict[x].keys()) for x in elementalDict]
+    keys2combine = set(np.array(uniquekeys).flatten())
+    outputs = [[] for i in range(len(keys2combine))]
+    tempCollection={}
 
-        temp = {}
-        temp['bnf'] = bnfOUT
-        temp['prod'] = prod
-        medDict[(name).lower()] = temp
-    return medDict
+    for iterel, key in enumerate(keys2combine):
+        for x in elementalDict:
+            if key in elementalDict[x]:
+                temp = outputs[iterel]
+                temp = temp + elementalDict[x][key]
+                outputs[iterel] = temp
+        tempCollection[key] = outputs[iterel]
+    collectionDict= {}
+    collectionDict['merged']= tempCollection
+    return collectionDict
+
 
 
 def getFromDict(ElementalDict,queryItem, flatten=False ):
@@ -198,49 +195,24 @@ def getFromDict(ElementalDict,queryItem, flatten=False ):
         else:
 
             return None
-def DiseaseDictionaryCompilerHelper(file,spark,primarypath,secondarypath):
-    """for scraping from the caliber  files"""
 
-    diagPath = file['medicalDict'] + 'Caliber/'
-    codes = np.array(pd.read_csv(diagPath + 'dictionary.csv'))
-    codes = np.array(codes)
+
+
+def CompilerHelper(file,spark, key2find = 'pheno'):
+    """for scraping from the raw phenotype dicts files"""
+
+    allpheno = load_obj (file['PhenoMaps'])
     diseaseVoc = {}
-    for x in codes:
-        temp = {}
-        primary = x[1]
-        secondary = x[2]
-        death = x[3]
-        if type(primary) == str:
-            Codefile = pd.read_csv(diagPath + primarypath + primary)
-            Codefile['Medcode'] = Codefile['Medcode'].apply(lambda elem: str(int(elem)))
-            temp['Read'] = list(set(Codefile.Readcode.values))
-            temp['Medcode'] = list(set(Codefile.Medcode.values))
-        if type(secondary) == str:
-            Codefile = pd.read_csv(diagPath + secondarypath + secondary)
-            temp['ICD'] = list(set([el.replace('.', "") for el in Codefile.ICD10code.values]))
-        if type(death) == str:
-            Codefile = pd.read_csv(diagPath + secondarypath + death)
-            temp['Death'] = list(set([el.replace('.', "") for el in Codefile.OPCS4code.values]))
-        diseaseVoc[(x[0]).lower()] = temp
+    for x in allpheno:
+        if key2find in x.lower():
+            for y in allpheno[x]:
+                if y in diseaseVoc:
+                    temp = diseaseVoc[y]
+                    for zz in temp:
+                        tempzz = temp[zz]
+                        for jj in allpheno[x][y][zz]:
+                            tempzz.append(jj)
+                        diseaseVoc[y][zz] = list ( set(tempzz))
+                else:
+                    diseaseVoc[y] = allpheno[x][y]
     return diseaseVoc
-
-
-def mergeDict(elementalDict):
-
-    """for merging dictionaries with multiple common nested keys"""
-
-    uniquekeys = [list(elementalDict[x].keys()) for x in elementalDict]
-    keys2combine = set(np.array(uniquekeys).flatten())
-    outputs = [[] for i in range(len(keys2combine))]
-    tempCollection={}
-
-    for iterel, key in enumerate(keys2combine):
-        for x in elementalDict:
-            if key in elementalDict[x]:
-                temp = outputs[iterel]
-                temp = temp + elementalDict[x][key]
-                outputs[iterel] = temp
-        tempCollection[key] = outputs[iterel]
-    collectionDict= {}
-    collectionDict['merged']= tempCollection
-    return collectionDict

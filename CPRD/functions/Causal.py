@@ -11,12 +11,19 @@ import os
 from pyspark.sql.types import IntegerType
 
 
-class RiskPredictionBase:
+class CausalBase:
     def __init__(self, follow_up_duration_month, time_to_event_mark_default=-1):
         self.follow_up_duration = follow_up_duration_month
         self.time2eventMarkDefault = time_to_event_mark_default
 
     def define_label(self, demographics, source, condition, column, death):
+        """
+        this function captures label
+        demographics is the patient eligible for analyses
+        source - the records of the patients - this can be medications /diagnoses/etc
+        column - the column of the source that has the codes (e.g., might be "code" or "ICD")
+        death - the death dataframe
+        """
         demographics = self.get_label_from_records(demographics, source=source, condition=condition, column=column)
         label_defined = demographics.filter(F.col('label').isin(*[0, 1]))
         label_unclear = demographics.filter(F.col('label').isin(*[0, 1]) == False)
@@ -80,7 +87,6 @@ class RiskPredictionBase:
         negtive_1 = demographics.where(F.col('eventdate') > F.col('endFollowUp')).withColumn('label', F.lit(0))
         negtive_1BEFORE = negtive_1.where(F.col('endFollowUp') <= F.col('enddate')).withColumn('time2event', F.lit(
             self.time2eventMarkDefault)).select(['patid', 'label', 'time2event'])
-
         negtive_1AFTER = negtive_1.where(F.col('endFollowUp') > F.col('enddate')).withColumn('time2event',
                                                                                              time2eventdiff2) \
             .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer')) \
@@ -90,36 +96,40 @@ class RiskPredictionBase:
             .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer')) \
             .select(['patid', 'label', 'time2event'])
 
+        # the identified patients are those that are definitely positive and negative (due to having event after follow-up)
         identified = positive.union(negtive_1AFTER)
         identified = identified.union(moreNEG)
         identified = identified.union(negtive_1BEFORE)
 
-        # get anti left patients
+        # get anti left patients - unclear is the ones which are not pos or neg (due to event after followup)
+        # more negative patients where the followup happens before enddate. technically censored in time2event framework
+        # but not in our binary prediction framework
         unclear = demographics.alias('a').join(identified.alias('b'), F.col("a.patid") == F.col("b.patid"), 'left') \
             .filter(F.col("b.patid").isNull()).select('a.*')
-
-        # positive_patid = positive.select(['patid'])
-        # unclear = demographics.join(positive_patid, 'patid', 'left_anti')
-
         negative = unclear.where(F.col('endFollowUp') < F.col('enddate')).withColumn('label', F.lit(0)) \
             .withColumn('time2event', F.lit(self.time2eventMarkDefault)).select(['patid', 'label', 'time2event'])
 
         # combine both identified positive and negative patients
         # null label is patients who have records less than the follow up period, need to further identify if
-        # the patient is dead or not
+        # the patient is dead or not - and if event happens in death (not HF but anything else is fair game)
         label = identified.union(negative)
         demographics = demographics.join(label, 'patid', 'left')
-        #         print(demographics.show())
         return demographics
 
-    def get_label_from_records(self, demographics, source, condition, column='code', incidence='full',
-                               incidence_exceptions=None):
+    def get_label_from_records(self, demographics, source, condition, column='code', incidence=True,
+                               prevalent_conditions=None):
         """
         identify label for patients from the records using the source dataframe and condition list provided
         demographics includes study entry date and when records end
         source is the modality required to retrieve label (e.g. diagnoses)
         condition is a list of code for case identification
         column is the column in source for identifying cases
+        incidence is a boolean where True means that incidence outcome is needed in the outcome ascertainment. And the prevalent outcome
+            patients will be removed from dataset. False - allows prevalent condition ascertainment
+        prevalent_conditions - while incidence is False only, this matters. In this case - the codes provided here that
+            are subset of the codes in the condition parameter and are the codes for which prevalent disease outcome prediction 
+            are conducted.
+
         """
 
         # keep records that belongs to a condtion provided by condition list
@@ -127,7 +137,7 @@ class RiskPredictionBase:
 
         # take first of the eventdate by patid
 
-        if incidence == 'full':
+        if incidence:
             w = Window.partitionBy('patid').orderBy('eventdate')
             source_first = source.withColumn(column, F.first(column).over(w)).groupBy('patid').agg(
                 F.min('eventdate').alias('eventdate'),
@@ -146,14 +156,14 @@ class RiskPredictionBase:
                                                         'left') \
                 .filter(F.col("b.patid").isNull()).select('a.*')
 
-        elif incidence == 'some':
-            if incidence_exceptions is None:
+        elif incidence== False:
+            if prevalent_conditions is None:
                 raise ValueError(
-                    "Not fully incidence as stated in the parameter, incidence_exception='some' but no exceptions provided. please provide excpetions in incidence_exceptions")
+                    "Not fully incidence as stated in the parameter, prevalent_conditions='some' but no exceptions provided. please provide excpetions in prevalent_conditions")
 
             else:
                 # exclude those with conditions in the past BUT not in the inncidence_exceptions
-                #  if patients have any disease BUT incidence_exceptions, throw them out
+                #  if patients have any disease BUT prevalent_conditions, throw them out
 
                 sourceOrig = source
 
@@ -161,14 +171,11 @@ class RiskPredictionBase:
                                   colsdemo not in ['eventdate', 'code']]
                 originalDemo4Backup = demographics.select(demorawcolumns)
 
-                # demographics.count()
                 demographics = demographics.join(source, 'patid', 'left')
-                #                 print(demographics.show())
 
                 excludePotential = demographics.where(F.col('eventdate') <= F.col('study_entry'))
-                includeterms = incidence_exceptions
+                includeterms = prevalent_conditions
                 exclude = excludePotential.filter(~ F.col(column).isin(*includeterms))
-                #                 print(exclude.show())
                 keep = excludePotential.alias('a').join(exclude.select(['patid', 'eventdate']).alias('b'),
                                                         F.col("a.patid") == F.col("b.patid"),
                                                         'left').filter(F.col("b.patid").isNull()).select('a.*')
@@ -179,7 +186,6 @@ class RiskPredictionBase:
                                                             F.col("a.patid") == F.col("b.patid"),
                                                             'left').filter(F.col("b.patid").isNull()).select('a.*')
 
-                #                 print(demographics.show())
                 demographicsPats = demographics.select(['patid']).dropDuplicates()
                 demographicsDates = demographics.select(['patid', 'eventdate', column, 'study_entry'])
                 w = Window.partitionBy('patid').orderBy('eventdate')
@@ -189,7 +195,6 @@ class RiskPredictionBase:
                     F.first('study_entry').alias('study_entry'),
 
                 )
-                #                 print(demographicsDates.show())
 
                 demographicsDates = demographicsDates.drop(column)
                 # in case
@@ -231,10 +236,8 @@ class RiskPredictionBase:
 
                 demographics = demographics.union(demographics_4keep_wSource)
         # assign label based on the follow up records
-        #         print('final before check up', demographics.show())
 
         demographics = self._check_follow_up_duration(demographics)
-        #         print(demographics.show())
         return demographics
 
     def get_label_from_death_registration(self, demographics, death, condition):
@@ -247,7 +250,7 @@ class RiskPredictionBase:
                 """
 
         hfconditions = ['I110', 'I130', 'I50', 'I132']
-        # no hf in death!!
+        # no hf in death
         condition = [xx for xx in condition if xx not in hfconditions]
         # thus the removal of hf codes above^
         for each in ['label', 'time2event']:
@@ -270,12 +273,10 @@ class RiskPredictionBase:
         death = death.groupBy('patid').agg(F.first('cause').alias('cause')) \
             .withColumn('label', F.lit(1)).select(['patid', 'label'])
         # join death with demographics and calculate time2event
-        #         print(death.show())
 
         time2eventdiff = F.unix_timestamp('enddate', "yyyy-MM-dd") - F.unix_timestamp('study_entry', "yyyy-MM-dd")
         demographics = demographics.join(death, 'patid', 'left').withColumn('time2event', time2eventdiff) \
             .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer'))
-        #         demographics.show()
         demographicsNULL = demographics.filter(F.col('label').isNull())
 
         demographicsNULL = demographicsNULL.withColumn('label', F.lit(0))
@@ -283,14 +284,13 @@ class RiskPredictionBase:
         demographicsNOTNULL = demographics.filter(F.col('label').isNotNull())
 
         demographics = demographicsNULL.union(demographicsNOTNULL)
-        #         print(demographics.show())
         return demographics
 
-    def set_label(self, demographics, source, condition, check_death=True, death=None, columns='code', incidence='full',
-                  incidence_exceptions=None):
+    def set_label(self, demographics, source, condition, check_death=True, death=None, columns='code', incidence=True,
+                  prevalent_conditions=None):
         demographics = self.get_label_from_records(demographics=demographics, source=source, condition=condition,
                                                    column=columns, incidence=incidence,
-                                                   incidence_exceptions=incidence_exceptions)
+                                                   prevalent_conditions=prevalent_conditions)
 
         label_defined = demographics.filter(F.col('label').isin(*[0, 1]))
 
@@ -300,23 +300,16 @@ class RiskPredictionBase:
                                                                         condition=condition)
             demographics = label_defined.union(label_define_death)
         else:
-            # demographics = label_defined
             label_unclear = demographics.filter(F.col('label').isNull())
             label_define_death = self.get_label_from_death_registration(demographics=label_unclear, death=death,
                                                                         condition=['_garbage'])
             demographics = label_defined.union(label_define_death)
 
-            #
-            #
-            #
-            # label_unclear = demographics.filter(F.col('label').isNull()).withColumn('label', F.lit(0))
-            # demographics = label_defined.union(label_unclear)
-
         return demographics
 
 
-class CausalOutcomePrediction(RiskPredictionBase):
-    def __init__(self, label_condition, exclusion_diagnosis=None, exclusion_medcaition=None, duration=(1985, 2015),
+class CausalOutcomePrediction(CausalBase):
+    def __init__(self, label_condition, exclusion_diagnosis=None, exclusion_medcaition=None, duration=(1985, 2021),
                  follow_up_duration_month=60, time_to_event_mark_default=-1):
         super().__init__(follow_up_duration_month, time_to_event_mark_default)
         """
@@ -354,16 +347,15 @@ class CausalOutcomePrediction(RiskPredictionBase):
 
     def pipeline(self, demographics=None, diagnosis=None, diagnosis_col='code', exclusion_diag=True,
                  medication=None, medication_col='code', exclusion_med=True, check_death=True, death=None,
-                 column_condition='code', incidence='full', incidence_exceptions=None):
+                 column_condition='code', incidence=True, prevalent_conditions=None):
         # apply exclusion criteria for diagnosis and medicaiton
         demographics, _ = self.exclusion_inclusion_diagnosis_medication(demographics, diagnosis, diagnosis_col,
                                                                         exclusion_diag, medication, medication_col,
                                                                         exclusion_med)
-        #         print(demographics.select('patid').dropDuplicates().count())
         # set up label for demographics
         demographics = self.set_label(demographics, diagnosis, self.label_condition, check_death, death=death,
                                       columns=column_condition, incidence=incidence,
-                                      incidence_exceptions=incidence_exceptions)
+                                      prevalent_conditions=prevalent_conditions)
         return demographics
 
     def forward(self):

@@ -343,6 +343,7 @@ class CausalOutcomePrediction(CausalBase):
                 for med, code in self.exclusion_medication.items():
                     demographics, _ = self.exclusion_inclusion_record(demographics, code, medication, medication_col,
                                                                       exclusion=exclusion_med)
+
         return demographics, _
 
     def pipeline(self, demographics=None, diagnosis=None, diagnosis_col='code', exclusion_diag=True,

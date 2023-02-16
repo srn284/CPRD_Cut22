@@ -39,12 +39,14 @@ class MedicalDictionaryBase:
             self.medDict = load_obj(file['medicalDict'] + 'MedicationDict')
             self.measureDict = load_obj(file['medicalDict'] + 'MeasurementDict')
             self.procDict = load_obj(file['medicalDict'] + 'ProcedureDict')
+            self.element_keys =list(self.measureDict.keys()) +list(self.diagDict.keys())+list(self.medDict.keys())+list(self.procDict.keys())
         else:
             self.componentDict = {}
             self.diagDict = {}
             self.medDict = {}
             self.measureDict = {}
             self.procDict = {}
+
 
     def showDiseases(self):
         print('Diseases included currently:')
@@ -195,3 +197,7 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
                 queryOut = mergeDict(queryOut)
 
             return queryOut
+
+    def findItem(self,queryItem=None):
+        terms = [x for x in self.element_keys if queryItem.lower().strip() in x.lower().strip()]
+        return terms

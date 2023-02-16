@@ -9,7 +9,7 @@ medications, diagnoses, enttype, bmi, drinking, smoking, bp measurement
 """
 
 
-def retrieve_medications(file, spark, mapping='bnfvtm', duration=(1985, 2021), demographics=None, cut4=True, practiceLink=True):
+def retrieve_medications(file, spark, mapping='bnfvtm', duration=(1985, 2021), demographics=None, practiceLink=True):
     """
     retrieve medication
     require patient, practice, therapy from CPRD, and death registration file from NOS, and prod2bnf mapping table

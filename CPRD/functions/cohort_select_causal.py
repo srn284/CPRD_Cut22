@@ -244,7 +244,6 @@ class CohortSoftCut(CausalCohort):
         demographics = self.standard_prepare(file, spark, self.linkage, self.practiceLink)
 
 
-
         # causal soft
         demographics = demographics.withColumn('study_entry', F.to_date(F.lit(duration[0])))
         # study entry is greatest of three as described above
@@ -261,6 +260,7 @@ class CohortSoftCut(CausalCohort):
         # requirement of the start of study before the last date (enddate)
         demographics = demographics.where(F.col('study_entry') < F.col('enddate'))
         demographics = demographics.where(F.col('study_entry') < F.col('exit_date'))
+
 
         return demographics
 

@@ -7,10 +7,10 @@ import datetime
 from pyspark.sql.types import IntegerType
 
 class Cohort:
-    def __init__(self, least_year_register_gp, least_age):
+    def __init__(self, least_year_register_gp, least_age, greatest_age):
         self.least_year_register_gp = least_year_register_gp
         self.least_age = least_age
-
+        self.greatest_age = greatest_age
     def retrieve_eligible_patid(self, patient, practice, eligible):
         demographics = tables.retrieve_demographics(patient=patient, practice=practice)
         eligible = eligible.select('patid')
@@ -33,6 +33,13 @@ class Cohort:
                                                demographics.dob + F.expr('INTERVAL {} YEARS'.format(self.least_age)))
         return demographics
 
+    def date_greatest_age(self, demographics):
+        # set dob to be the middle of the year
+        demographics = demographics.withColumn('dob', F.concat(F.col('yob'), F.lit('0701')))
+        demographics = demographics.withColumn('dob', cvt_str2time(demographics, 'dob'))
+        demographics = demographics.withColumn('{}_dob'.format(self.greatest_age),
+                                               demographics.dob + F.expr('INTERVAL {} YEARS'.format(self.greatest_age)))
+
     def standard_prepare(self, file, spark):
         """
         return dataframe contains information about records start and end date, the date for at least N year after
@@ -48,6 +55,8 @@ class Cohort:
         demographics = self.retrieve_eligible_patid(patient, practice, eligible)
         demographics = self.date_least_year_register_gp(demographics, death)
         demographics = self.date_least_age(demographics)
+        demographics = self.date_greatest_age(demographics)
+
         return demographics
 
     def pipeline(self, *args, **kwargs) -> Any:
@@ -65,8 +74,8 @@ class Cohort:
 
 
 class CohortHardCut(Cohort):
-    def __init__(self, least_year_register_gp, least_age):
-        super().__init__(least_year_register_gp, least_age)
+    def __init__(self, least_year_register_gp, least_age, greatest_age):
+        super().__init__(least_year_register_gp, least_age, greatest_age)
 
     def pipeline(self, file, spark, study_entry_date='1995-01-01'):
         """
@@ -77,6 +86,7 @@ class CohortHardCut(Cohort):
 
         # study entry date after the date of birth
         demographics = demographics.where(F.col('study_entry') > F.col('{}_dob'.format(self.least_age)))
+        demographics = demographics.where(F.col('study_entry') <= F.col('{}_dob'.format(self.greatest_age)))
 
         # study entry date after x year of registration with gp
         demographics = demographics.where(F.col('study_entry') > F.col('least_gp_register_date'))
@@ -87,8 +97,8 @@ class CohortHardCut(Cohort):
 
 
 class CohortSoftCut(Cohort):
-    def __init__(self, least_year_register_gp, least_age):
-        super().__init__(least_year_register_gp, least_age)
+    def __init__(self, least_year_register_gp, least_age, greatest_age):
+        super().__init__(least_year_register_gp, least_age, greatest_age)
 
     def pipeline(self, file, spark,  duration=('1995-01-01', '2015-01-01')):
         """
@@ -108,6 +118,11 @@ class CohortSoftCut(Cohort):
 
         # last start of study is the second element of the duration (the finish date)
         demographics = demographics.withColumn('exit_date', F.to_date(F.lit(duration[1])))
+
+        demographics.withColumn('exit_datereal', F.least(F.col('exit_date'), F.to_date(F.lit(duration[1])),
+                                                         F.col('{}_dob'.format(self.greatest_age)))).drop(
+            'exit_date').withColumnRenamed('exit_datereal', 'exit_date')
+
         # requirement of the start of study before the last date (enddate)
         demographics = demographics.where(F.col('study_entry') < F.col('enddate'))
         demographics = demographics.where(F.col('study_entry') < F.col('exit_date'))
@@ -115,8 +130,8 @@ class CohortSoftCut(Cohort):
         return demographics
 
 class CohortRandomCut(Cohort):
-    def __init__(self, least_year_register_gp, least_age):
-        super().__init__(least_year_register_gp, least_age)
+    def __init__(self, least_year_register_gp, least_age, greatest_age):
+        super().__init__(least_year_register_gp, least_age, greatest_age)
 
     def pipeline(self, file, spark, duration=('1995-01-01', '2015-01-01')):
         """
@@ -132,7 +147,8 @@ class CohortRandomCut(Cohort):
                                                                    F.col('{}_dob'.format(self.least_age)),
                                                                    F.to_date(F.lit(duration[0]))))
 
-        demographics = demographics.withColumn('end', F.least(F.col('enddate'), F.to_date(F.lit(duration[1]))))
+        demographics = demographics.withColumn('end', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
+                                                              F.col('{}_dob'.format(self.greatest_age))))
 
         demographics = demographics.where(F.col('start') < F.col('end'))
 

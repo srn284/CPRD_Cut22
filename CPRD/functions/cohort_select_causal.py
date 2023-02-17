@@ -87,155 +87,12 @@ class CausalCohort:
         raise NotImplementedError
 
 
-class CohortRandomCut(CausalCohort):
-    def __init__(self, least_year_register_gp, least_age, greatest_age, exposure, imdReq=True, linkage=True, practiceLink=True):
-        super().__init__(least_year_register_gp, least_age, greatest_age, imdReq)
-
-        # exposure is shown as tuple: (format = 'prod','bnf','icd', 'read','medcode', codes)
-        self.exposure = exposure
-        self.linkage = linkage
-        self.practiceLink = practiceLink
-    def demoExtract(self, file, spark, duration=('1995-01-01', '2010-01-01')):
-        demographics = self.standard_prepare(file, spark, self.linkage, self.practiceLink)
-
-        demographics = demographics.withColumn('study_entry', F.greatest(F.col('least_gp_register_date'),
-                                                                         F.col('{}_dob'.format(self.least_age)),
-                                                                         F.to_date(F.lit(duration[0]))))
-
-        demographics = demographics.withColumn('enddatereal', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
-                                                              F.col('{}_dob'.format(self.greatest_age)))).drop('enddate').withColumnRenamed('enddatereal', 'enddate')
-
-
-        demographics = demographics.where(F.col('study_entry') < F.col('enddate'))
-        return demographics
-
-    def pipeline(self, file, spark, duration=('1995-01-01', '2010-01-01')):
-        """
-        random select baseline date between the start and end
-        start: greatest of dob, gp registration, study start date (duration[0])
-        end: least of end date, duration
-        other criteria, the start date is smaller than the end date
-
-        duration in (year-month-date) format
-        """
-        demographics = self.demoExtract(file, spark, duration)
-
-        demographics = self.extractionExposure(file, spark, duration, demographics)
-
-        demographics = self.randomizeNeg(file, spark, demographics)
-
-        return demographics
-
-    def randomizeNeg(self, file, spark, demographics):
-        # random generate a date between start and end as baseline
-        pos = demographics.filter(F.col('label') == 1)
-        neg = demographics.filter(F.col('label') == 0)
-
-        rand_generate = F.udf(lambda x: random.randrange(x), IntegerType())
-        neg = neg.withColumn('diff', F.datediff(F.col('enddate'), F.col('study_entry'))) \
-            .withColumn('diff', rand_generate('diff')) \
-            .withColumn('study_entry', F.expr("date_add(study_entry, diff)")).drop('diff')
-
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry',
-                                                                                         
-                      'startdate', 'enddate', 'expCode', 'label']
-        if self.imdReq:
-            outputCols.append('imd2015_5')
-
-        pos = pos.select(outputCols).withColumnRenamed('label', 'expLabel')
-        neg = neg.select(outputCols).withColumnRenamed('label', 'expLabel')
-        demographics = pos.union(neg)
-        return demographics
-
-    def extractionExposure(self, file, spark, duration, demographics, sourceT=None, sourceCol=None):
-
-        duration = (int(duration[0].split("-")[0]), int(duration[1].split("-")[0]))
-        if sourceT is None:
-            if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
-
-                sourceTable = retrieve_medications(file, spark,mapping=self.exposure[0],
-                                                   duration=duration,
-                                                   demographics=demographics)
-                #             print((sourceTable.count()))
-                tempcodes = self.exposure[1]
-                coll = 'bnfcode'
-                if self.exposure[0] == 'prod':
-                    coll = 'prodcode'
-
-            elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark, mapping=self.exposure[0],
-                                                      duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'readcode'
-                if self.exposure[0] == 'med':
-                    coll = 'medcode'
-            elif (self.exposure[0] == 'icd'):
-                sourceTable = retrieve_diagnoses_hes(file, spark, duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'ICD'
-        else:
-            sourceTable = sourceT
-            tempcodes = self.exposure[1]
-            coll = sourceCol
-        pos, neg = self.get_label_from_records(file, spark, demographics, sourceTable, tempcodes, coll)
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry', 
-                      'startdate', 'enddate', 'expCode', 'label']
-        if self.imdReq:
-            outputCols.append('imd2015_5')
-        pos = pos.select(outputCols)
-        neg = neg.select(outputCols)
-        demographics = pos.union(neg)
-
-        return demographics
-
-    def get_label_from_records(self, file, spark, demographics, source, condition, column='code'):
-        """
-        identify label for patients from the records using the source dataframe and condition list provided
-
-        demographics includes study entry date and when records end
-        source is the modality required to retrieve label (e.g. diagnoses)
-        condition is a list of code for case identification
-        column is the column in source for identifying cases
-        """
-
-        # keep records that belongs to a condtion provided by condition list
-        source = source.filter(F.col(column).isin(*condition)).select(['patid', 'eventdate', column])
-
-        # take first of the eventdate by patid
-        w = Window.partitionBy('patid').orderBy('eventdate')
-        source = source.withColumn(column, F.first(column).over(w)).groupBy('patid').agg(
-            F.first('eventdate').alias('eventdate'),
-            F.first(column).alias(column)
-        )
-
-        # remove patients that having incidence before the study entry
-        # demographics includes column + event date
-        demographics = demographics.join(source, 'patid', 'left').withColumnRenamed(column, 'expCode')
-
-        exclude = demographics.where(F.col('eventdate') <= F.col('study_entry')).select('patid').drop_duplicates()
-        demographics = demographics.join(exclude, 'patid', 'left_anti')
-
-        positive = demographics.where(F.col('eventdate') <= F.col('enddate')).withColumn('label', F.lit(1))
-
-        if os.path.exists('/home/shared/shishir/tempDpos.parquet'):
-            shutil.rmtree('/home/shared/shishir/tempDpos.parquet', ignore_errors=True)
-        positive.write.parquet('/home/shared/shishir/tempDpos.parquet')
-        positive_patid = read_parquet(spark.sqlContext, '/home/shared/shishir/tempDpos.parquet').select(
-            'patid').drop_duplicates()
-        positive = positive.withColumn('study_entry', positive['eventdate'])
-        negative = demographics.join(positive_patid, 'patid', 'left_anti').withColumn('label', F.lit(0))
-
-        return positive, negative
-
-
-
-
 
 class CohortSoftCut(CausalCohort):
     def __init__(self, least_year_register_gp, least_age, greatest_age, exposure, imdReq=True, linkage=True, practiceLink=True):
         super().__init__(least_year_register_gp, least_age, greatest_age, imdReq)
 
-        # exposure is shown as tuple: (format = 'prod','bnf','icd', 'read','medcode', codes)
+        # exposure is shown as tuple: (format = 'prodcode','ICD10','medcode', 'OPCS')
         self.exposure = exposure
         self.linkage = linkage
         self.practiceLink = practiceLink
@@ -264,7 +121,7 @@ class CohortSoftCut(CausalCohort):
 
         return demographics
 
-    def pipeline(self, file, spark, duration=('1995-01-01', '2010-01-01'), randomNeg=True):
+    def pipeline(self, file, spark, duration=('1995-01-01', '2010-01-01'), randomNeg=True, sourceT=None, sourceCol = None, rollingTW=-1):
         """
         random select baseline date between the start and end
         start: greatest of dob, gp registration, study start date (duration[0])
@@ -275,67 +132,42 @@ class CohortSoftCut(CausalCohort):
         """
         demographics = self.demoExtract(file, spark, duration)
 
-        demographics = self.extractionExposure(file, spark, duration, demographics)
+        demographics = self.extractionExposure(file, spark, duration, demographics, sourceT=sourceT, sourceCol=sourceCol,rollingTW=rollingTW )
 
         demographics = self.randomizeNeg(file, spark, demographics, randomNeg)
-
+        demographics = demographics.drop('study_entry'). withColumnRenamed('eventdate', 'study_entry')
         return demographics
 
     def randomizeNeg(self, file, spark, demographics, randomNeg=True):
         # random generate a date between start and end as baseline
-        pos = demographics.filter(F.col('label') == 1)
-        neg = demographics.filter(F.col('label') == 0)
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry',
-                      'startdate', 'enddate', 'expCode', 'label', 'exit_date']
+        pos = demographics.filter(F.col('exp_label') == 1)
+        neg = demographics.filter(F.col('exp_label') == 0)
+        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'study_entry',
+                      'startdate', 'enddate', 'exit_date'] + ['expCode', 'exp_label']
         if randomNeg:
             rand_generate = F.udf(lambda x: random.randrange(x), IntegerType())
             neg = neg.withColumn('diff', F.datediff(F.col('exit_date'), F.col('study_entry'))) \
                 .withColumn('diff', rand_generate('diff')) \
-                .withColumn('study_entry', F.expr("date_add(study_entry, diff)")).drop('diff')
+                .withColumn('eventdate', F.expr("date_add(study_entry, diff)")).drop('diff')
 
-            outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry',
-                          'startdate', 'enddate', 'expCode', 'label','exit_date']
+
         if self.imdReq:
             outputCols.append('imd2015_5')
 
-        pos = pos.select(outputCols).withColumnRenamed('label', 'expLabel')
-        neg = neg.select(outputCols).withColumnRenamed('label', 'expLabel')
+        pos = pos.select(outputCols)
+        neg = neg.select(outputCols)
         demographics = pos.union(neg)
         return demographics
 
-    def extractionExposure(self, file, spark, duration, demographics, sourceT=None, sourceCol=None, incidence='full', incidence_exceptions=None,rollingTW=-1 ):
+    def extractionExposure(self, file, spark, duration, demographics, sourceT=None, sourceCol=None,rollingTW=-1 ):
 
-        duration = (int(duration[0].split("-")[0]), int(duration[1].split("-")[0]))
-        if sourceT is None:
-            if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
+        sourceTable = sourceT
+        tempcodes = list(self.exposure.values())[0]
+        pos, neg = self.get_exp(demographics, sourceTable, tempcodes, sourceCol,rollingTW )
+        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob',  'study_entry',
+                      'startdate', 'enddate', 'exit_date']+ ['expCode', 'exp_label']
 
-                sourceTable = retrieve_medications(file, spark, mapping=self.exposure[0],
-                                                   duration=duration,
-                                                   demographics=demographics)
-                #             print((sourceTable.count()))
-                tempcodes = self.exposure[1]
-                coll = 'bnfcode'
-                if self.exposure[0] == 'prod':
-                    coll = 'prodcode'
 
-            elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark,mapping=self.exposure[0],
-                                                      duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'readcode'
-                if self.exposure[0] == 'med':
-                    coll = 'medcode'
-            elif (self.exposure[0] == 'icd'):
-                sourceTable = retrieve_diagnoses_hes(file, spark, duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'ICD'
-        else:
-            sourceTable = sourceT
-            tempcodes = self.exposure[1]
-            coll = sourceCol
-        pos, neg = self.get_label_from_records(demographics, sourceTable, tempcodes, coll, incidence, incidence_exceptions,rollingTW )
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry',
-                      'startdate', 'enddate', 'expCode', 'label','exit_date']
         if self.imdReq:
             outputCols.append('imd2015_5')
         pos = pos.select(outputCols)
@@ -344,8 +176,7 @@ class CohortSoftCut(CausalCohort):
 
         return demographics
 
-    def get_label_from_records(self, demographics, source, condition, column='code', incidence='full',
-                               incidence_exceptions=None, rollingTW=-1):
+    def get_exp(self, demographics, source, condition, column='code',rollingTW=-1):
 
         """
                 identify label for patients from the records using the source dataframe and condition list provided
@@ -358,27 +189,25 @@ class CohortSoftCut(CausalCohort):
         # keep records that belongs to a condtion provided by condition list
         source = source.filter(F.col(column).isin(*condition)).select(['patid', 'eventdate', column])
 
-        # take first of the eventdate by patid
+        if rollingTW==-1:
+            # take first of the eventdate by patid
 
-        if incidence == 'full'and rollingTW==-1:
             w = Window.partitionBy('patid').orderBy('eventdate')
-            #             print(source[source.patid==14712681].show())
             source_first = source.withColumn(column, F.first(column).over(w)).groupBy('patid').agg(
                 F.min('eventdate').alias('eventdate'),
                 F.first(column).alias(column)
             )
             # remove patients that having incidence before the study entry
-            # demographics includes column + event date
             demographics = demographics.join(source_first, 'patid', 'left').withColumnRenamed(column, 'expCode')
-            #             print(demographics.show())
             exclude = demographics.where(F.col('eventdate') <= F.col('study_entry'))
-            # anti left join
+            # anti left join hack (some bug in pyspark hence the hacky way)
             demographics = demographics.alias('a').join(exclude.select(['patid', 'eventdate']).alias('b'),
                                                         F.col("a.patid") == F.col("b.patid"),
                                                         'left') \
                 .filter(F.col("b.patid").isNull()).select('a.*')
-        elif incidence == 'full'and rollingTW!=-1:
 
+        # no need to worry about this for now...
+        elif rollingTW!=-1:
             source2 = source
             monthsLambda = lambda i: int(-i * 30 * 86400)
 
@@ -437,10 +266,8 @@ class CohortSoftCut(CausalCohort):
 
             # remove patients that having incidence before the study entry
             # demographics includes column + event date
-            #             source_first2keep.write.parquet('keep2sources3.parquet')
             source_first2keep = source_first2keep.select(['patid','eventdate',column])
             demographics = demographics.join(source_first2keep, 'patid', 'left').withColumnRenamed(column, 'expCode')
-            #             print(demographics.show())
 
             exclude = demographics.where(F.col('eventdate') <= F.col('study_entry'))
             # anti left join
@@ -461,182 +288,14 @@ class CohortSoftCut(CausalCohort):
                                                         F.col("z.patid") == F.col("b.patid"),
                                                         'left') \
                 .filter(F.col("b.patid").isNull()).select('z.*')
-        positive = demographics.where(F.col('eventdate') <= F.col('exit_date')).withColumn('label', F.lit(1))
-#         print(positive.count())
+
+        positive = demographics.where(F.col('eventdate') <= F.col('exit_date')).withColumn('exp_label', F.lit(1))
 
         positive = positive.withColumn('study_entry', positive['eventdate'])
 
         negative = demographics.alias('a').join(positive.select(['patid','eventdate']).alias('b'), F.col("a.patid") == F.col("b.patid"),
                                                 'left').filter(F.col("b.patid").isNull()).select('a.*')
-#         print()
-        negative = negative.withColumn('label', F.lit(0))
-#         print(negative.count())
-#         negative.write.parquet(direcSaveDemo+'demo1neg.parquet')
-#         positive.write.parquet(direcSaveDemo+'demo1pos.parquet')
-
-        return positive, negative
-
-
-class CohortHardCut(CausalCohort):
-    def __init__(self, least_year_register_gp, least_age, greatest_age, exposure, imdReq=True, linkage=True, practiceLink=True):
-        super().__init__(least_year_register_gp, least_age, greatest_age, imdReq)
-
-        # exposure is shown as tuple: (format = 'prod','bnf','icd', 'read','medcode', codes)
-        self.exposure = exposure
-        self.linkage = linkage
-        self.practiceLink = practiceLink
-    def demoExtract(self, file, spark, duration=('1995-01-01', '2010-01-01')):
-        demographics = self.standard_prepare(file, spark, self.linkage, self.practiceLink)
-
-        demographics = demographics.withColumn('study_entry', F.greatest(F.col('least_gp_register_date'),
-                                                                         F.col('{}_dob'.format(self.least_age)),
-                                                                         F.to_date(F.lit(duration[0]))))
-
-        demographics = demographics.withColumn('enddatereal', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
-                                                              F.col('{}_dob'.format(self.greatest_age)))).drop('enddate').withColumnRenamed('enddatereal', 'enddate')
-
-        demographics = demographics.where(F.col('study_entry') < F.col('enddate'))
-        return demographics
-
-    def pipeline(self, file, spark, duration=('1995-01-01', '2010-01-01')):
-        """
-        random select baseline date between the start and end
-        start: greatest of dob, gp registration, study start date (duration[0])
-        end: least of end date, duration
-        other criteria, the start date is smaller than the end date
-
-        duration in (year-month-date) format
-        """
-        demographics = self.demoExtract(file, spark, duration)
-
-        demographics = self.extractionExposure(file, spark, duration, demographics)
-
-        demographics = self.randomizeNeg(file, spark, demographics)
-
-        return demographics
-
-    def randomizeNeg(self, file, spark, demographics):
-        # random generate a date between start and end as baseline
-        pos = demographics.filter(F.col('label') == 1)
-        neg = demographics.filter(F.col('label') == 0)
-
-        rand_generate = F.udf(lambda x: random.randrange(x), IntegerType())
-        neg = neg.withColumn('diff', F.datediff(F.col('enddate'), F.col('study_entry'))) \
-            .withColumn('diff', rand_generate('diff')) \
-            .withColumn('study_entry', F.expr("date_add(study_entry, diff)")).drop('diff')
-
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry', 
-                      'startdate', 'enddate', 'expCode', 'label']
-        if self.imdReq:
-            outputCols.append('imd2015_5')
-
-        pos = pos.select(outputCols).withColumnRenamed('label', 'expLabel')
-        neg = neg.select(outputCols).withColumnRenamed('label', 'expLabel')
-        demographics = pos.union(neg)
-        return demographics
-
-    def extractionExposure(self, file, spark, duration, demographics, sourceT=None, sourceCol=None):
-
-        duration = (int(duration[0].split("-")[0]), int(duration[1].split("-")[0]))
-        if sourceT is None:
-            if (self.exposure[0] == 'prod' or self.exposure[0] == 'bnf'):
-
-                sourceTable = retrieve_medications(file, spark, mapping=self.exposure[0],
-                                                   duration=duration,
-                                                   demographics=demographics)
-                #             print((sourceTable.count()))
-                tempcodes = self.exposure[1]
-                coll = 'bnfcode'
-                if self.exposure[0] == 'prod':
-                    coll = 'prodcode'
-
-            elif (self.exposure[0] == 'read' or self.exposure[0] == 'med'):
-                sourceTable = retrieve_diagnoses_cprd(file, spark, mapping=self.exposure[0],
-                                                      duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'readcode'
-                if self.exposure[0] == 'med':
-                    coll = 'medcode'
-            elif (self.exposure[0] == 'icd'):
-                sourceTable = retrieve_diagnoses_hes(file, spark, duration=duration, demographics=demographics)
-                tempcodes = self.exposure[1]
-                coll = 'ICD'
-        else:
-            sourceTable = sourceT
-            tempcodes = self.exposure[1]
-            coll = sourceCol
-        pos, neg = self.get_label_from_records(file, spark, demographics, sourceTable, tempcodes, coll)
-        outputCols = ['patid', 'region', 'eventdate', 'gender', 'dob', 'yob', 'marital', 'study_entry', 
-                      'startdate', 'enddate', 'expCode', 'label']
-        if self.imdReq:
-            outputCols.append('imd2015_5')
-        pos = pos.select(outputCols)
-        neg = neg.select(outputCols)
-        demographics = pos.union(neg)
-
-        return demographics
-
-    def get_label_from_records(self, file, spark, demographics, source, condition, column='code'):
-        """
-        identify label for patients from the records using the source dataframe and condition list provided
-
-        demographics includes study entry date and when records end
-        source is the modality required to retrieve label (e.g. diagnoses)
-        condition is a list of code for case identification
-        column is the column in source for identifying cases
-        """
-
-        # keep records that belongs to a condtion provided by condition list
-        source = source.filter(F.col(column).isin(*condition)).select(['patid', 'eventdate', column])
-
-        # take first of the eventdate by patid
-        w = Window.partitionBy('patid').orderBy('eventdate')
-        source = source.withColumn(column, F.first(column).over(w)).groupBy('patid').agg(
-            F.first('eventdate').alias('eventdate'),
-            F.first(column).alias(column)
-        )
-
-        # remove patients that having incidence before the study entry
-        # demographics includes column + event date
-        demographics = demographics.join(source, 'patid', 'left').withColumnRenamed(column, 'expCode')
-
-        exclude = demographics.where(F.col('eventdate') <= F.col('study_entry'))
-
-        # anti left join
-        demographics = demographics.alias('a').join(exclude.alias('b'), F.col("a.patid") == F.col("b.patid"),
-                                                    'left') \
-            .filter(F.col("b.patid").isNull()).select('a.*')
-
-
-
-        positive = demographics.where(F.col('eventdate') <= F.col('enddate')).withColumn('label', F.lit(1))
-
-        positive = positive.withColumn('study_entry', positive['eventdate'])
-        negative = demographics.alias('a').join(positive.alias('b'), F.col("a.patid") == F.col("b.patid"),
-                                                    'left') \
-            .filter(F.col("b.patid").isNull()).select('a.*')
+        negative = negative.withColumn('exp_label', F.lit(0))
 
 
         return positive, negative
-
-
-
-#
-# # extra code - getlabel
-# demographics = demographics.join(source, 'patid', 'left').withColumnRenamed(column, 'expCode')
-#
-# exclude = demographics.where(F.col('eventdate') <= F.col('study_entry')).select('patid').drop_duplicates()
-# demographics = demographics.join(exclude, 'patid', 'left_anti')
-#
-# positive = demographics.where(F.col('eventdate') <= F.col('enddate')).withColumn('label', F.lit(1))
-#
-# if os.path.exists('/home/shared/shishir/tempDpos.parquet'):
-#     shutil.rmtree('/home/shared/shishir/tempDpos.parquet', ignore_errors=True)
-# positive.write.parquet('/home/shared/shishir/tempDpos.parquet')
-# positive_patid = read_parquet(spark.sqlContext, '/home/shared/shishir/tempDpos.parquet').select(
-#     'patid').drop_duplicates()
-# positive = positive.withColumn('study_entry', positive['eventdate'])
-# negative = demographics.join(positive_patid, 'patid', 'left_anti').withColumn('label', F.lit(0))
-#
-# return positive, negative
-

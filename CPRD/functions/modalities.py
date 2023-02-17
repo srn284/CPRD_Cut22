@@ -183,11 +183,13 @@ def retrieve_diagnoses_hes(file, spark, duration=(1985,2021), demographics = Non
     hes = tables.retrieve_hes_diagnoses(dir=file['diagnosis_hes'], spark=spark)
     hes = cprd_table.Hes(hes.select(['patid', 'eventdate', 'ICD']).withColumn('source', F.lit('HES'))).rm_dot('ICD')
     if demographics is not None:
-        time = demographics.select(['patid','startdate','enddate'])
+        time = demographics.select(['patid','startdate','deathdate'])
 
         hes = hes.join(time, 'patid', 'inner').where((F.col('eventdate') > F.col('startdate')) &
-                                                           (F.col('eventdate') < F.col('enddate'))).drop('deathdate').select(['patid', 'eventdate', 'ICD', 'source'])
-
+                                                           (F.col('eventdate') < F.col('deathdate'))).select(['patid', 'eventdate', 'ICD', 'source'])
+    else:
+        print('need some demographics /patient file to proceed!')
+        raise NotImplementedError
     # apply time filtering
     hes = check_time(hes, 'eventdate', time_a=duration[0], time_b=duration[1])
 

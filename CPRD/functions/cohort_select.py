@@ -39,6 +39,7 @@ class Cohort:
         demographics = demographics.withColumn('dob', cvt_str2time(demographics, 'dob'))
         demographics = demographics.withColumn('{}_dob'.format(self.greatest_age),
                                                demographics.dob + F.expr('INTERVAL {} YEARS'.format(self.greatest_age)))
+        return demographics
 
     def standard_prepare(self, file, spark):
         """

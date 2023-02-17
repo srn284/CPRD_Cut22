@@ -55,6 +55,9 @@ class Clinical(DataFrame):
         """remove the rows which are not observations"""
         return Clinical (self.where((F.col('obstypeid')=='7')))
 
+    def filter_byid(self, id_str):
+        """remove the rows which are not obs_id"""
+        return Clinical (self.where((F.col('obstypeid')==id_str)))
 
 
 class Consultation(DataFrame):

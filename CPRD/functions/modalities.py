@@ -1,5 +1,5 @@
 import pyspark.sql.functions as F
-from CPRD.functions import tables, merge
+from CPRD.functions import tables, merge, MedicalDictionary
 from CPRD.config.utils import *
 from CPRD.config.spark import *
 import CPRD.base.table as cprd_table
@@ -195,7 +195,7 @@ def retrieve_diagnoses_hes(file, spark, duration=(1985,2021), demographics = Non
 
     return hes
 
-def retrieve_by_enttype(file, spark, enttype, duration=(1985, 2021)):
+def retrieve_by_enttype(file, spark, enttype, id_str='10', duration=(1985, 2021)):
     """
     retrieve additional information from additional table using enttype
 
@@ -208,29 +208,65 @@ def retrieve_by_enttype(file, spark, enttype, duration=(1985, 2021)):
     if type(enttype) is not list:
         enttype = [enttype]
 
-    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark).filter_byid(id_str)
     clinical = clinical.filter(F.col('medcode').isin(enttype))
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
     return clinical
 
 
-def retrieve_bmi(file, spark, duration=(1985, 2021), usable_range=(16, 50)):
+def retrieve_bmi(file, spark, duration=(1985, 2021), usable_range=(5, 50)):
     """
     retrive bmi from additional
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'data1', 'data2', 'bmi', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'bmi']
     """
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    bmi = condition_query.queryMeasurement(['bmi'], merge=True)['bmi']['medcode']
 
-
-    bmi = retrieve_by_enttype(file, spark, enttype='100716012', duration=duration)
+    bmi = retrieve_by_enttype(file, spark, enttype=bmi, id_str='10', duration=duration)
+    bmi = bmi.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    bmi = bmi.filter((F.col('value').isNotNull()))
     bmi = bmi.groupby(['patid', 'eventdate']) \
         .agg(F.mean('value').alias('bmi'))
-    bmi = bmi.where((F.col('bmi') > usable_range[0]) & (F.col('bmi') < usable_range[1]))
-    bmi = bmi.filter((F.col('bmi').isNotNull()))
 
     return bmi
+
+def retrieve_hdlr(file, spark, duration=(1985, 2021), usable_range=(0, 10)):
+    """
+    retrive bmi from additional
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'hdlr']
+    """
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    hdlr = condition_query.queryMeasurement(['cholesterol'], merge=True)['cholesterol']['medcode']
+    hdlr = retrieve_by_enttype(file, spark, enttype=hdlr, id_str='10', duration=duration)
+    hdlr = hdlr.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    hdlr = hdlr.filter((F.col('value').isNotNull()))
+    hdlr = hdlr.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('hdlr'))
+
+    return hdlr
+
+def retrieve_sodium(file, spark, duration=(1985, 2021), usable_range=(20, 200)):
+    """
+    :param file:
+    :param spark:
+    :param duration:
+    """
+    sodium = ['259010012', '259011011', '5514121000006114', '404493014', '4113021000006114', '5514131000006112', \
+            '284446019', '6277651000006115', '4113031000006112', '6277661000006118', '6277671000006113']
+
+    sodium = retrieve_by_enttype(file, spark, enttype=sodium, id_str='10', duration=duration)
+    sodium = sodium.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    sodium = sodium.filter((F.col('value').isNotNull()))
+    sodium = sodium.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('sodium'))
+
+    return sodium
 
 def retrieve_drinking_status(file, spark, duration=(1985, 2021)):
     """
@@ -238,12 +274,14 @@ def retrieve_drinking_status(file, spark, duration=(1985, 2021)):
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'alcohol', 'data2', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'alcohol']
     """
 
-    drink = retrieve_by_enttype(file, spark, enttype=5, duration=duration)
-    drink = drink.groupby(['patid', 'eventdate'])\
-        .agg(F.first('data1').alias('alcohol'))
+    drink = retrieve_by_enttype(file, spark, enttype=['1221271018'], id_str='10', duration=duration)
+    drink = drink.filter((F.col('value').isNotNull()))
+    drink = drink.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('alcohol'))
+
     return drink
 
 
@@ -253,12 +291,18 @@ def retrieve_smoking_status(file, spark, duration=(1985, 2021)):
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'smoke', 'data2', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'smoke']
     """
-    smoke = retrieve_by_enttype(file, spark, enttype=4, duration=duration)
-    smoke = smoke.groupby(['patid', 'eventdate']) \
-        .agg(F.first('data1').alias('smoke'), F.first('data2').alias('cig_per_day'))
-    return smoke
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    smoke = condition_query.queryMeasurement(['smoking+yes'], merge=True)['smoking+yes']['medcode']
+    ex_smoke = condition_query.queryMeasurement(['smoking+ex'], merge=True)['smoking+ex']['medcode']
+    no_smoke = condition_query.queryMeasurement(['smoking+no'], merge=True)['smoking+no']['medcode']
+
+    smoke = retrieve_by_enttype(file, spark, enttype=smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(1))
+    ex_smoke = retrieve_by_enttype(file, spark, enttype=ex_smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(2))
+    no_smoke = retrieve_by_enttype(file, spark, enttype=no_smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(3))
+
+    return smoke.union(ex_smoke).union(no_smoke).select('patid', 'eventdate', 'smoke')
 
 
 def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2021), usable_range=(10, 140)):
@@ -267,14 +311,16 @@ def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2021), usable
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'diastolic', '
-    lic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'diastolic']
     """
-    bp = retrieve_by_enttype(file, spark, enttype='619931000006119', duration=duration)
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    dbp = condition_query.queryMeasurement(['dbp'], merge=True)['dbp']['medcode']
+
+    bp = retrieve_by_enttype(file, spark, enttype=dbp, duration=duration)
+    bp = bp.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    bp = bp.filter((F.col('value').isNotNull()))
     bp = bp.groupby(['patid', 'eventdate']) \
         .agg(F.mean('value').alias('diastolic'))
-    bp = bp.where((F.col('diastolic') > usable_range[0]) & (F.col('diastolic') < usable_range[1]))
-    bp = bp.filter((F.col('diastolic').isNotNull()))
 
     return bp
 
@@ -284,46 +330,54 @@ def retrieve_systolic_bp_measurement(file, spark, duration=(1985, 2021), usable_
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'systolic']
     """
-    bp = retrieve_by_enttype(file, spark, enttype='114311000006111', duration=duration)
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    sbp = condition_query.queryMeasurement(['sbp'], merge=True)['sbp']['medcode']
+
+    bp = retrieve_by_enttype(file, spark, enttype=sbp, duration=duration)
+    bp = bp.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    bp = bp.filter( (F.col('value').isNotNull()))
     bp = bp.groupby(['patid', 'eventdate'])\
         .agg( F.mean('value').alias('systolic'))
-    bp = bp.where((F.col('systolic') > usable_range[0]) & (F.col('systolic') < usable_range[1]))
-    bp = bp.filter( (F.col('systolic').isNotNull()))
 
     return bp
 
 def retrieve_heartrate_measurement(file, spark, duration=(1985, 2021), usable_range=(30,250)):
     """
-    get the bp measurement, systolic pressure (high number)
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'heartrate']
     """
-    hr = retrieve_by_enttype(file, spark, enttype='487210016', duration=duration)
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    hr = condition_query.queryMeasurement(['heart rate'], merge=True)['heart rate']['medcode']
+
+    hr = retrieve_by_enttype(file, spark, enttype=hasattr, duration=duration)
+    hr = hr.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    hr = hr.filter((F.col('value').isNotNull()))
     hr = hr.groupby(['patid', 'eventdate'])\
-        .agg( F.mean('value').alias('heartrate'))
-    hr = hr.where((F.col('heartrate') > usable_range[0]) & (F.col('heartrate') < usable_range[1]))
-    hr = hr.filter( (F.col('heartrate').isNotNull()))
+        .agg(F.mean('value').alias('heartrate'))
 
     return hr
 
 
 def retrieve_creatinine_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 250)):
     """
-    get the creat measurement, systolic pressure (high number)
+    get the creat measurement
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'creatinine']
     """
-    creat = retrieve_by_enttype(file, spark, enttype='380389013', duration=duration)
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    creat = condition_query.queryMeasurement(['creatinine'], merge=True)['creatinine']['medcode']
+
+    creat = retrieve_by_enttype(file, spark, enttype=creat, duration=duration)
+    creat = creat.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    creat = creat.filter( (F.col('value').isNotNull()))
     creat = creat.groupby(['patid', 'eventdate'])\
-        .agg( F.mean('value').alias('creatinine'))
-    creat = creat.where((F.col('creatinine') > usable_range[0]) & (F.col('creatinine') < usable_range[1]))
-    creat = creat.filter( (F.col('creatinine').isNotNull()))
+        .agg(F.mean('value').alias('creatinine'))
 
     return creat
 
@@ -333,13 +387,16 @@ def retrieve_eGFR_measurement(file, spark, duration=(1985, 2021), usable_range=(
     :param file:
     :param spark:
     :param duration:
-    :return: ['patid', 'eventdate', 'enttype', 'diastolic', 'systolic', 'data3', 'data4', 'data5', 'data6', 'data7']
+    :return: ['patid', 'eventdate', 'eGFR']
     """
-    egfr = retrieve_by_enttype(file, spark, enttype=['1942831000006114','976481000006110','133205018'], duration=duration)
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    egfr = condition_query.queryMeasurement(['egfr'], merge=True)['egfr']['medcode']
+
+    egfr = retrieve_by_enttype(file, spark, enttype=egfr, duration=duration)
+    egfr = egfr.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    egfr = egfr.filter( (F.col('value').isNotNull()))
     egfr = egfr.groupby(['patid', 'eventdate'])\
-        .agg( F.mean('value').alias('eGFR'))
-    egfr = egfr.where((F.col('eGFR') > usable_range[0]) & (F.col('eGFR') < usable_range[1]))
-    egfr = egfr.filter( (F.col('eGFR').isNotNull()))
+        .agg(F.mean('value').alias('eGFR'))
 
     return egfr
 
@@ -359,8 +416,7 @@ def retrieve_imd(file, spark):
     return imd
 
 
-
-def retrieve_test(file, spark, duration=(1985, 2021)):
+def retrieve_test_LEGACY(file, spark, duration=(1985, 2021)):
     """
     retrieve test
     :param file: file load from yaml contains dir for all necessary files
@@ -393,12 +449,10 @@ def retrieve_test(file, spark, duration=(1985, 2021)):
     test = test.withColumn("tests", translate(lookup)('enttype')).na.drop().select(['patid', 'eventdate', 'tests'])
     test = test.dropDuplicates()
 
-
     return test
 
 
-
-def retrieve_lab_test(file, spark, duration=(1985, 2021), demographics=None, start_col='startdate',
+def retrieve_lab_test_LEGACY(file, spark, duration=(1985, 2021), demographics=None, start_col='startdate',
                        end_col='enddate'):
     """
     retrieve medication

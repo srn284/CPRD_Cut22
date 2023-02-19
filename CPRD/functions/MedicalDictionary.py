@@ -1,17 +1,19 @@
-import random
-from CPRD.functions import tables, merge
-import pyspark.sql.functions as F
-from utils.utils import *
-
-from CPRD.functions.modalities import *
-from pyspark.sql import Window
-from CPRD.config.spark import read_parquet
-from typing import Any
 import datetime
-from pyspark.sql.types import IntegerType
-import math
-import numpy as np
 import glob
+import math
+import random
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pyspark.sql.functions as F
+from pyspark.sql import Window
+from pyspark.sql.types import IntegerType
+
+from CPRD.config.spark import read_parquet
+from CPRD.functions import merge, tables
+from CPRD.functions.modalities import *
+from utils.utils import *
 
 
 class MedicalDictionaryBase:
@@ -33,13 +35,18 @@ class MedicalDictionaryBase:
         """
         load dict
         """
-        if 'PhenoMaps' in file and 'medicalDict' in file:
-            self.componentDict = load_obj(file['PhenoMaps'])
-            self.diagDict = load_obj(file['medicalDict'] + 'DiseaseDict')
-            self.medDict = load_obj(file['medicalDict'] + 'MedicationDict')
-            self.measureDict = load_obj(file['medicalDict'] + 'MeasurementDict')
-            self.procDict = load_obj(file['medicalDict'] + 'ProcedureDict')
-            self.element_keys =list(self.measureDict.keys()) +list(self.diagDict.keys())+list(self.medDict.keys())+list(self.procDict.keys())
+        if "PhenoMaps" in file and "medicalDict" in file:
+            self.componentDict = load_obj(file["PhenoMaps"])
+            self.diagDict = load_obj(file["medicalDict"] + "DiseaseDict")
+            self.medDict = load_obj(file["medicalDict"] + "MedicationDict")
+            self.measureDict = load_obj(file["medicalDict"] + "MeasurementDict")
+            self.procDict = load_obj(file["medicalDict"] + "ProcedureDict")
+            self.element_keys = (
+                list(self.measureDict.keys())
+                + list(self.diagDict.keys())
+                + list(self.medDict.keys())
+                + list(self.procDict.keys())
+            )
         else:
             self.componentDict = {}
             self.diagDict = {}
@@ -47,75 +54,52 @@ class MedicalDictionaryBase:
             self.measureDict = {}
             self.procDict = {}
 
+    def compile_medical_dictionary(self, file, save_path: Path = None, key2find: str):
+        """Compile dicts so you can save them to a file. Will update the instance as well."""
+        compiled_dict = CompilerHelper(file=file, key2find=key2find)
 
-    def showDiseases(self):
-        print('Diseases included currently:')
-        print(list(self.diagDict))
+        if save_path is not None:
+            save_obj(compiled_dict, save_path)
 
-    def showMeasurements(self):
-        print('Measurements/Tests included currently:')
-        print(list(self.measureDict))
+        return compiled_dict
 
-    def showProcedures(self):
-        print('Procedures included currently:')
-        print(list(self.procDict))
+    def compileMedicationDict(self, file, savePath=None):
+        """Compile medication dictionaries"""
+        compiled_dict = self.compile_medical_dictionary(
+            file=file, save_path=savePath, key2find="meds"
+        )
 
-    def showMedications(self):
-        print('Medications included currently:')
-        print(list(self.medDict))
+        print("updated medication vocabulary dictionary...")
+        self.medDict = compiled_dict
 
-    def compileMedicationDict(self, file, spark, savePath=None):
-        """
-        compilation of new medication dicts can save it in your local (Arg: savePath).
-        will update the medDict on file as well (i.e. self.medDict)
-        """
-        medDict = CompilerHelper(file, spark, key2find='meds')
-
-        if savePath is not None:
-            save_obj(medDict, savePath)
-
-        print('updated medication vocabulary dictionary...')
-        self.medDict = medDict
-
-    def compileMeasurementsDict(self, file, spark, savePath=None):
+    def compileMeasurementsDict(self, file, savePath=None):
         """
         compilation of new measurement dicts can save it in your local (Arg: savePath).
         will update the dict on file as well (i.e. self.measureDict)
         """
-        medDict = CompilerHelper(file, spark, key2find='obs')
+        compiled_dict = self.compile_medical_dictionary(
+            file=file, save_path=savePath, key2find="obs"
+        )
 
-        if savePath is not None:
-            save_obj(medDict, savePath)
+        print("updated measurements vocabulary dictionary...")
+        self.measureDict = compiled_dict
 
-        print('updated measurements vocabulary dictionary...')
-        self.measureDict = medDict
+    def compileProcedureDict(self, file, savePath=None):
+        """Compile new procedure dict"""
+        medDict = self.compile_medical_dictionary(
+            file=file, save_path=savePath, key2find="proc"
+        )
 
-    def compileProcedureDict(self, file, spark, savePath=None):
-        """
-        compilation of new procedures dicts can save it in your local (Arg: savePath).
-        will update the dict on file as well (i.e. self.procDict)
-        """
-        medDict = CompilerHelper(file, spark, key2find='proc')
-
-        if savePath is not None:
-            save_obj(medDict, savePath)
-
-        print('updated procedure vocabulary dictionary...')
+        print("updated procedure vocabulary dictionary...")
         self.procDict = medDict
 
-    def compileDiseaseDict(self, file, spark, savePath=None):
-        """
-        this will compile from the exisiting phenomaps available
+    def compileDiseaseDict(self, file, savePath=None):
+        """Compile disease dictionary"""
+        diseaseVoc = self.compile_medical_dictionary(
+            file=file, save_path=savePath, key2find="pheno"
+        )
 
-
-        compilation of new disease dicts can save it in your local (Arg: savePath).
-        will update the diagDict on file as well (i.e. self.diagDict)
-        """
-        diseaseVoc = CompilerHelper(file, spark, key2find='pheno')
-        if savePath is not None:
-            save_obj(diseaseVoc, savePath)
-
-        print('updated disease vocabulary dictionary...')
+        print("updated disease vocabulary dictionary...")
         self.diagDict = diseaseVoc
 
 
@@ -146,58 +130,62 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
     def getAllComponents(self):
         return self.componentDict
 
-    def queryDisease(self, queryItem=None, merge=False):
+    def query_dictionary(
+        self,
+        medical_dictionary,
+        medical_dictionary_name: str,
+        queryItem=None,
+        merge=False,
+    ):
+        """Query the medical dictionary"""
 
-        queryOut = getFromDict(self.diagDict, queryItem)
+        queryOut = getFromDict(medical_dictionary, queryItem)
 
         if queryOut is None:
-            print('Element not in disease dictionary')
+            print(f"Element not in {medical_dictionary_name} dictionary")
             return None
         else:
             if merge and type(queryItem) != str and len(queryItem) > 1:
                 queryOut = mergeDict(queryOut)
 
             return queryOut
+
+    def queryDisease(self, queryItem=None, merge=False):
+        self.query_dictionary(
+            medical_dictionary=self.diagDict,
+            medical_dictionary_name="diagnosis",
+            queryItem=queryItem,
+            merge=merge,
+        )
 
     def queryMeasurement(self, queryItem=None, merge=False):
-
-        queryOut = getFromDict(self.measureDict, queryItem)
-
-        if queryOut is None:
-            print('Element not in measurement dictionary')
-            return None
-        else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
-                queryOut = mergeDict(queryOut)
-
-            return queryOut
+        self.query_dictionary(
+            medical_dictionary=self.measureDict,
+            medical_dictionary_name="measurement",
+            queryItem=queryItem,
+            merge=merge,
+        )
 
     def queryProcedure(self, queryItem=None, merge=False):
-
-        queryOut = getFromDict(self.procDict, queryItem)
-
-        if queryOut is None:
-            print('Element not in procedure dictionary')
-            return None
-        else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
-                queryOut = mergeDict(queryOut)
-
-            return queryOut
+        self.query_dictionary(
+            medical_dictionary=self.procDict,
+            medical_dictionary_name="procedure",
+            queryItem=queryItem,
+            merge=merge,
+        )
 
     def queryMedication(self, queryItem=None, merge=False):
+        self.query_dictionary(
+            medical_dictionary=self.medDict,
+            medical_dictionary_name="medication",
+            queryItem=queryItem,
+            merge=merge,
+        )
 
-        queryOut = getFromDict(self.medDict, queryItem)
-
-        if queryOut is None:
-            print('Element not in medication dictionary')
-            return None
-        else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
-                queryOut = mergeDict(queryOut)
-
-            return queryOut
-
-    def findItem(self,queryItem=None):
-        terms = [x for x in self.element_keys if queryItem.lower().strip() in x.lower().strip()]
+    def findItem(self, queryItem=None):
+        terms = [
+            x
+            for x in self.element_keys
+            if queryItem.lower().strip() in x.lower().strip()
+        ]
         return terms

@@ -6,8 +6,8 @@ from CPRD.base.table import *
 from CPRD.functions import tables, merge
 
 class PredictorExtractorBase:
-    def predictor_extract(self, df, demographics, col, col_baseline='study_entry', span_before_baseline_month=None,
-                          type='last'):
+    def predictor_extract(self, df, demographics, col, colname = 'predcolumn', col_baseline='study_entry', span_before_baseline_month=None,
+                          type='last' ):
         """
         function to extract predictor at baseline, specifically for measurement type.
         extract the last record, or variance, or mean over vertain time period
@@ -46,7 +46,7 @@ class PredictorExtractorBase:
         else:
             raise ValueError('type need to be set as either last, or var, or mean')
 
-        df = df.select(['patid', col])
+        df = df.select(['patid', col]).withColumnRenamed(col, colname)
         return df
 
     def predictor_check_exist(self, condition, df, demographics, col, countsBased=-1, col_baseline='study_entry'):

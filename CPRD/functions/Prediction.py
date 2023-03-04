@@ -249,7 +249,8 @@ class PredBase:
                 otherwise, we exclude them
                 """
 
-        hfconditions = ['I110', 'I130', 'I50', 'I132']
+        hfconditions =['I431', 'I132', 'I119', 'O903', 'R570', 'I42', 'I432', 'I50', 'I427', 'I438', 'I500', 'I255', 'I131', 'I501', 'I43', 'I509', 'I110', 'I429', 'K761', 'P290', 'I420', 'I425', 'I130']
+
         # no hf in death
         condition = [xx for xx in condition if xx not in hfconditions]
         # thus the removal of hf codes above^

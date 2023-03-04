@@ -6,7 +6,7 @@ from CPRD.base.table import *
 from CPRD.functions import tables, merge
 
 class PredictorExtractorBase:
-    def predictor_extract(self, df, demographics, col, colname = 'predcolumn', col_baseline='study_entry', span_before_baseline_month=None,
+    def predictor_extract(self, df, demographics, col, colname = 'code', col_baseline='study_entry', span_before_baseline_month=None,
                           type='last' ):
         """
         function to extract predictor at baseline, specifically for measurement type.
@@ -14,6 +14,7 @@ class PredictorExtractorBase:
         df: dataframe contains patid, eventdate, and columns for extraction, other columns will be ignored
         demographics: demographics dataframe that should include patid, and column to indicate the baseline date
         col: the column name in the df to be considered for extraction
+        colname: name of column - default is 'code'
         col_baseline: the columns name in the demographics to indicate the baseline date
         span_before_baseline_month: only consider a time duration in month before the baseline for extraction,
                                     if None, all records before baseline will be considered
@@ -49,13 +50,14 @@ class PredictorExtractorBase:
         df = df.select(['patid', col]).withColumnRenamed(col, colname)
         return df
 
-    def predictor_check_exist(self, condition, df, demographics, col, countsBased=-1, col_baseline='study_entry'):
+    def predictor_check_exist(self, condition, df, demographics, col, colname='code', countsBased=-1, col_baseline='study_entry'):
         """
         check the existance of a condition before the baseline, exist 1, not exist 0
         condition: a list of code to be checked
         df: the dataframe to be checked includes patid, eventdate, and column to be checked
         demographics: demographics dataframe includes patid, column indicates the baseline date
         col: columns name in df indicates the column to be checked
+        colname: name of column - default is 'code'
         col_baseline: column name in demographics indicates the baseline date
         """
         # keep all records before the baseline date
@@ -81,7 +83,8 @@ class PredictorExtractorBase:
         negative = demographics.filter(F.col('exist').isNull()).withColumn('exist', F.lit(0))
 
         # join positive and negative group and select only patid and col columns
-        demographics = positive.union(negative).withColumnRenamed('exist', col).select(['patid', col])
+        demographics = positive.union(negative).withColumnRenamed('exist', col).select(['patid', col]).withColumnRenamed(col, colname)
+
         return demographics
 
     def flatten(self, file, spark, df, code_column='code', add_sep =True):

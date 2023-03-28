@@ -6,7 +6,7 @@ from CPRD.base.table import *
 from CPRD.functions import tables, merge
 
 class PredictorExtractorBase:
-    def predictor_extract(self, df, demographics, col, colname = 'code', col_baseline='study_entry', span_before_baseline_month=None,
+    def predictor_extract(self, df, demographics, col, colname = 'code', col_baseline='study_entry', span_before_baseline_month=None,span_after_baseline_month=None,
                           type='last' ):
         """
         function to extract predictor at baseline, specifically for measurement type.
@@ -18,6 +18,8 @@ class PredictorExtractorBase:
         col_baseline: the columns name in the demographics to indicate the baseline date
         span_before_baseline_month: only consider a time duration in month before the baseline for extraction,
                                     if None, all records before baseline will be considered
+        span_after_baseline_month: only consider a time duration in month after the baseline for extraction,
+                                    if None, NO records after baseline will be considered
         type: 'last', or 'var', or 'mean' type of information to be extracted,
                 'last' returns the information in the latest time of recording
                 'var' returns the variance of predictor within the defined time period
@@ -28,13 +30,18 @@ class PredictorExtractorBase:
         demographics = demographics.select(['patid', col_baseline])
 
         # join dataframe with demographics keep patients existing in both and before study entry
-        df = df.join(demographics, 'patid', 'inner').where(F.col('eventdate') < F.col(col_baseline))
+        df = df.join(demographics, 'patid', 'inner')
 
         if span_before_baseline_month is not None:
-            df = df.withColumn('span_date', df[col_baseline]
+            df = df.withColumn('span_date_before', df[col_baseline]
                                - F.expr('INTERVAL {} MONTH'.format(span_before_baseline_month)))
-            df = df.where(F.col('eventdate') > F.col('span_date')).drop('span_date')
-
+            df = df.where(F.col('eventdate') > F.col('span_date_before')).drop('span_date_before')
+        if span_after_baseline_month is not None:
+            df = df.withColumn('span_date_after', df[col_baseline]
+                                + F.expr('INTERVAL {} MONTH'.format(span_after_baseline_month)))
+            df = df.where(F.col('eventdate') < F.col('span_date_after')).drop('span_date_after')
+        else:
+            df= df.where(F.col('eventdate') < F.col(col_baseline))
         w = Window.partitionBy('patid').orderBy('eventdate')
         if type == 'last':
             df = df.withColumn(col, F.last(col).over(w)).groupBy('patid').agg(F.last(col).alias(col))
@@ -132,7 +139,7 @@ class PredictorExtractorBase:
         return df
 
 
-class BEHRT(PredictorExtractorBase):
+class BEHRTextraction(PredictorExtractorBase):
     def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', col_code='code'):
         # merge records and hf_cohort, and keep only records within the time period
         data = data.join(demorgraphics, 'patid', 'inner').dropna() \

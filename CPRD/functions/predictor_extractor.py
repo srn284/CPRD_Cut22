@@ -140,7 +140,18 @@ class PredictorExtractorBase:
 
 
 class BEHRTextraction(PredictorExtractorBase):
-    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', col_code='code'):
+    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year' , col_code='code', unique_per_year=False):
+        """
+
+        :param data: the records - e.g., med or disease records
+        :param demorgraphics: the demo file for the work
+        :param col_entry: the column to get the study entry variable (when to stop getting records)
+        :param col_yob: the column to get the yob variable
+        :param age_col_name: the column for the age variables
+        :param col_code: the column for the code
+        :param unique_per_year: too many repeats so delete all repeats within 1 year
+        :return:  dataframe with behrt formatted data
+        """
         # merge records and hf_cohort, and keep only records within the time period
         data = data.join(demorgraphics, 'patid', 'inner').dropna() \
             .where(F.col('eventdate') <= F.col(col_entry))
@@ -148,31 +159,45 @@ class BEHRTextraction(PredictorExtractorBase):
         # calulate age for each event
         data = EHR(data).cal_age('eventdate', col_yob, year=False, name=age_col_name)
 
-        data = self._format_sequence(data, col_code, age_col_name)
+        data = self._format_sequence(data, col_code, age_col_name, year_col_name,unique_per_year)
         return data
 
-    def _format_sequence(self, data, col_code, col_age):
+    def _format_sequence(self, data, col_code, col_age, col_year, unique_per_year):
+        """
+
+        :param data: the records - e.g., med or disease records
+        :param col_code: the column for the code
+        :param col_age: the column for the age variables
+        :param col_year: column for the year
+        :return:
+        """
         # group by date
         data = data.groupby(['patid', 'eventdate']).agg(F.collect_list(col_code).alias(col_code),
-                                                        F.collect_list(col_age).alias(col_age), F.first('label').alias('label'))
+                                                        F.collect_list(col_age).alias(col_age), F.collect_list(col_year).alias(col_year), F.first('label').alias('label'))
         data = EHR(data).array_add_element(col_code, 'SEP')
         # add extra age to fill the gap of sep
         extract_age = F.udf(lambda x: x[0])
         data = data.withColumn('age_temp', extract_age(col_age)).withColumn(col_age, F.concat(F.col(col_age), F.array(
             F.col('age_temp')))).drop('age_temp')
+        data = data.withColumn('year_temp', extract_age(col_year)).withColumn(col_year, F.concat(F.col(col_year), F.array(
+            F.col('year_temp')))).drop('year_temp')
+
+        if unique_per_year:
+            data = data.dropDuplicates(["patid",col_code,col_year]).dropna()
 
         # sort and merge code and age
         w = Window.partitionBy('patid').orderBy('eventdate')
         data = data.withColumn(col_code, F.collect_list(col_code).over(w)) \
             .withColumn(col_age, F.collect_list(col_age).over(w)) \
-            .groupBy('patid').agg(F.max(col_code).alias(col_code), F.max(col_age).alias(col_age), F.first('label').alias('label'))
-        data = EHR(data).array_flatten(col_code).array_flatten(col_age)  # patid, code, age
+            .withColumn(col_year, F.collect_list(col_year).over(w)) \
+            .groupBy('patid').agg(F.max(col_code).alias(col_code), F.max(col_age).alias(col_age), F.max(col_year).alias(col_year), F.first('label').alias('label'))
+        data = EHR(data).array_flatten(col_code).array_flatten(col_age) .array_flatten(col_year).dropna()  # patid, code, age
         return data
 
 
 
 class BEHRTCausal(PredictorExtractorBase):
-    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', col_code='code', explabel='explabel', exclcode = None):
+    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year', col_code='code',unique_per_year=False , explabel='explabel', exclcode = None):
         # merge records and hf_cohort, and keep only records within the time period
         data = data.join(demorgraphics, 'patid', 'inner').dropna() \
             .where(F.col('eventdate') <= F.col(col_entry))
@@ -186,10 +211,10 @@ class BEHRTCausal(PredictorExtractorBase):
         # calulate age for each event
         data = EHR(data).cal_age('eventdate', col_yob, year=False, name=age_col_name)
         data = EHR(data).cal_year('eventdate', name='year')
-        data = self._format_sequence(data, col_code, age_col_name, 'year', explabel)
+        data = self._format_sequence(data, col_code, age_col_name, year_col_name,unique_per_year, explabel)
         return data
 
-    def _format_sequence(self, data, col_code, col_age, col_year, explabel):
+    def _format_sequence(self, data, col_code, col_age, col_year, unique_per_year, explabel):
         # group by date
         data = data.groupby(['patid', 'eventdate']).agg(F.collect_list(col_code).alias(col_code),
                                                         F.collect_list(col_age).alias(col_age), F.collect_list(col_year).alias(col_year), F.first('label').alias('label'), F.first(explabel).alias(explabel))
@@ -198,15 +223,16 @@ class BEHRTCausal(PredictorExtractorBase):
         extract_age = F.udf(lambda x: x[0])
         data = data.withColumn('age_temp', extract_age(col_age)).withColumn(col_age, F.concat(F.col(col_age), F.array(
             F.col('age_temp')))).drop('age_temp')
-        data = data.withColumn('year_temp', extract_age('year')).withColumn('year', F.concat(F.col('year'), F.array(
+        data = data.withColumn('year_temp', extract_age(col_year)).withColumn(col_year, F.concat(F.col(col_year), F.array(
             F.col('year_temp')))).drop('year_temp')
         # sort and merge code and age
-
+        if unique_per_year:
+            data = data.dropDuplicates(["patid", col_code, col_year]).dropna()
 
         w = Window.partitionBy('patid').orderBy('eventdate')
         data = data.withColumn(col_code, F.collect_list(col_code).over(w)) \
             .withColumn(col_age, F.collect_list(col_age).over(w)) \
-            .withColumn('year', F.collect_list('year').over(w)) \
-            .groupBy('patid').agg(F.max(col_code).alias(col_code), F.max(col_age).alias(col_age),F.max('year').alias('year'), F.first('label').alias('label') , F.first(explabel).alias(explabel))
-        data = EHR(data).array_flatten(col_code).array_flatten(col_age) .array_flatten('year') # patid, code, age
+            .withColumn(col_year, F.collect_list(col_year).over(w)) \
+            .groupBy('patid').agg(F.max(col_code).alias(col_code), F.max(col_age).alias(col_age),F.max(col_year).alias(col_year), F.first('label').alias('label') , F.first(explabel).alias(explabel))
+        data = EHR(data).array_flatten(col_code).array_flatten(col_age) .array_flatten(col_year).dropna() # patid, code, age
         return data

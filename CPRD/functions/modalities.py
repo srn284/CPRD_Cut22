@@ -101,7 +101,7 @@ def retrieve_diagnoses(file, spark, mapping ='sno2icd' ,  duration=(1985,2021), 
 
     # merge cprd and hes
     data = merge.merge_hes_clinical(hes, clinical)
-
+    data = merge.cleanupICD_extrachar(data)
     # apply time filtering
     data = check_time(data, 'eventdate', time_a=duration[0], time_b=duration[1])
 

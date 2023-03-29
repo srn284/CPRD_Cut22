@@ -274,6 +274,7 @@ def retrieve_sno2icd_map(dir, spark):
     sno2icd = sno2icd.withColumnRenamed('icd10code', 'ICD')
 
     return sno2icd
+
 def retrieve_additional(dir, spark):
     additional = read_txtzip(spark.sc, spark.sqlContext, dir)
     return additional

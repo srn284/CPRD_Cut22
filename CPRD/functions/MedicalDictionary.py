@@ -2,6 +2,7 @@ import random
 from CPRD.functions import tables, merge
 import pyspark.sql.functions as F
 from utils.utils import *
+from CPRD.config.utils import *
 
 from CPRD.functions.modalities import *
 from pyspark.sql import Window

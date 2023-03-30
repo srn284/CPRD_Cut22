@@ -104,7 +104,7 @@ def retrieve_diagnoses(file, spark, mapping ='sno2icd' ,  duration=(1985,2021), 
     data = merge.cleanupICD_extrachar(data)
     # apply time filtering
     data = check_time(data, 'eventdate', time_a=duration[0], time_b=duration[1])
-
+    data = data.dropDuplicates()
     return data
 
 def retrieve_diagnoses_cprd(file, spark, mapping ='sno2icd' , duration=(1985,2021), demographics=None, practiceLink=True):

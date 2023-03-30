@@ -140,7 +140,7 @@ class PredictorExtractorBase:
 
 
 class BEHRTextraction(PredictorExtractorBase):
-    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year' , col_code='code', unique_per_year=False):
+    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year' , col_code='code', unique_in_months=None):
         """
 
         :param data: the records - e.g., med or disease records
@@ -155,14 +155,21 @@ class BEHRTextraction(PredictorExtractorBase):
         # merge records and hf_cohort, and keep only records within the time period
         data = data.join(demorgraphics, 'patid', 'inner').dropna() \
             .where(F.col('eventdate') <= F.col(col_entry))
+        data = data.dropDuplicates(['patid', 'eventdate', col_code]).dropna()
 
         # calulate age for each event
         data = EHR(data).cal_age('eventdate', col_yob, year=False, name=age_col_name)
+        data = EHR(data).cal_year('eventdate', name=year_col_name)
+        if unique_in_months:
+            monthcal = F.udf(lambda x: int(((x.year * 12) + x.month - 1) / unique_in_months))
+            data = data.withColumn('interval_cal', monthcal(F.col('eventdate')))
+            window = Window.partitionBy([coldf for coldf in data.columns if coldf!='eventdate']).orderBy("eventdate")
+            data  = data.withColumn("rn", F.row_number().over(window)).filter(F.col("rn") == 1).drop("rn").drop("interval_cal")
 
-        data = self._format_sequence(data, col_code, age_col_name, year_col_name,unique_per_year)
+        data = self._format_sequence(data, col_code, age_col_name, year_col_name)
         return data
 
-    def _format_sequence(self, data, col_code, col_age, col_year, unique_per_year):
+    def _format_sequence(self, data, col_code, col_age, col_year):
         """
 
         :param data: the records - e.g., med or disease records
@@ -182,8 +189,6 @@ class BEHRTextraction(PredictorExtractorBase):
         data = data.withColumn('year_temp', extract_age(col_year)).withColumn(col_year, F.concat(F.col(col_year), F.array(
             F.col('year_temp')))).drop('year_temp')
 
-        if unique_per_year:
-            data = data.dropDuplicates(["patid",col_code,col_year]).dropna()
 
         # sort and merge code and age
         w = Window.partitionBy('patid').orderBy('eventdate')

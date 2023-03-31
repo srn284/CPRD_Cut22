@@ -410,7 +410,7 @@ def retrieve_imd(file, spark):
     """
 
     imd = read_txt(spark.sc, spark.sqlContext, path=file['imd'])
-    imd = imd.select(['patid', 'imd2015_5']).filter(imd.imd2021_5 !='') \
+    imd = imd.select(['patid', 'imd2015_5']).filter(imd.imd2015_5 !='') \
         .filter((F.col('imd2015_5').isNotNull()))
 
     return imd

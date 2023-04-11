@@ -95,7 +95,6 @@ class CausalBase:
         moreNEG = moreNEG.withColumn('time2event', time2eventdiff2) \
             .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer')) \
             .select(['patid', 'label', 'time2event'])
-
         # the identified patients are those that are definitely positive and negative (due to having event after follow-up)
         identified = positive.union(negtive_1AFTER)
         identified = identified.union(moreNEG)

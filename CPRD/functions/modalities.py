@@ -402,7 +402,7 @@ def retrieve_eGFR_measurement(file, spark, duration=(1985, 2021), usable_range=(
 
 def retrieve_imd(file, spark):
     """
-    retrieve imd
+    retrieve imd (update still 2015_5)
 
     :param file: file load from yaml contains dir for all necessary files
     :param spark: spark object

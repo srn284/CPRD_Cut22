@@ -158,13 +158,14 @@ class BEHRTextraction(PredictorExtractorBase):
         data = data.dropDuplicates(['patid', 'eventdate', col_code]).dropna()
 
         # calulate age for each event
-        data = EHR(data).cal_age('eventdate', col_yob, year=False, name=age_col_name)
-        data = EHR(data).cal_year('eventdate', name=year_col_name)
+
         if unique_in_months:
             monthcal = F.udf(lambda x: int(((x.year * 12) + x.month - 1) / unique_in_months))
             data = data.withColumn('interval_cal', monthcal(F.col('eventdate')))
             window = Window.partitionBy([coldf for coldf in data.columns if coldf!='eventdate']).orderBy("eventdate")
             data  = data.withColumn("rn", F.row_number().over(window)).filter(F.col("rn") == 1).drop("rn").drop("interval_cal")
+        data = EHR(data).cal_age('eventdate', col_yob, year=False, name=age_col_name)
+        data = EHR(data).cal_year('eventdate', name=year_col_name)
 
         data = self._format_sequence(data, col_code, age_col_name, year_col_name)
         return data

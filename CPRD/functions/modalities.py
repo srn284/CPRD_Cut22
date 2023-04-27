@@ -509,7 +509,7 @@ def retrieve_procedure(file, spark, duration=(1985, 2021), demographics=None, st
     else:
         time = demographics.select(['patid', start_col,  end_col])
 
-    procedure = tables.retrieve_procedure(dir=file['hes_procedure'], spark=spark)
+    procedure = tables.retrieve_hes_proc(dir=file['proc_hes'], spark=spark)
 
     procedure = procedure.join(time, 'patid', 'inner') \
         .where((F.col('eventdate') > F.col('startdate')) & (F.col('eventdate') < F.col('enddate')))

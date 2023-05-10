@@ -88,7 +88,7 @@ def retrieve_diagnoses(file, spark, mapping ='sno2icd' ,  duration=(1985,2021), 
         if mapping =='sno2icd':
             sno2icd = tables.retrieve_sno2icd_map(dir=file['sno2icd'], spark=spark)
             clinical = merge.sno2icd_mapping(sno2icd, clinical)
-            clinical = clinical.withColumn('ICD', F.explode('ICD'))
+            clinical = clinical.withColumn('ICD', F.explode_outer('ICD'))
 
     # map medcode to read code
     elif 'read' in mapping:

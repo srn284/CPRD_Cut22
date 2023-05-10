@@ -110,9 +110,9 @@ def sno2icd_mapping(crossmap, clinical):
 
 
 def cleanupICD_extrachar(sno2icd):
-    rm_x = F.udf(lambda x: x if x[-1] != 'X' else x[0:-1])
+    rm_x = F.udf(lambda x: x if ((x  is None )or (x[-1] != 'X') ) else x[0:-1])
     # this is for removing last letter eg I438A but keeping eg PROC_K908
-    rm_extraICDletter = F.udf(lambda x: x if ((len(x) < 5) or ('PROC' in x)) else x[0:-1])
+    rm_extraICDletter = F.udf(lambda x: x if  ( (x  is None ) or  (len(x) < 5) or ('PROC' in x)) else x[0:-1])
     sno2icd = sno2icd.withColumn('ICD', rm_x('ICD')).withColumn('ICD', rm_extraICDletter('ICD'))
 
     return sno2icd

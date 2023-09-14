@@ -11,10 +11,12 @@ class Cohort:
         self.least_year_register_gp = least_year_register_gp
         self.least_age = least_age
         self.greatest_age = greatest_age
-    def retrieve_eligible_patid(self, patient, practice, eligible):
-        demographics = tables.retrieve_demographics(patient=patient, practice=practice)
-        eligible = eligible.select('patid')
-        demographics = demographics.join(eligible, on='patid', how='inner')
+    def retrieve_eligible_patid(self, patient, practice, eligible, linkage = True, practiceLink=True):
+        demographics = tables.retrieve_demographics(patient=patient, practice=practice, practiceLink=practiceLink)
+
+        if linkage==True:
+            eligible = eligible.select('patid')
+            demographics = demographics.join(eligible, on='patid', how='inner')
         return demographics
 
     def date_least_year_register_gp(self, demographics, death):

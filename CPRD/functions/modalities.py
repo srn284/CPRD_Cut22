@@ -519,3 +519,30 @@ def retrieve_procedure(file, spark, duration=(1985, 2021), demographics=None, st
     procedure = check_time(procedure, 'eventdate', time_a=duration[0], time_b=duration[1])
 
     return procedure
+
+def retrieve_ethnicity(file, spark):
+    ethnicity = read_txt(spark.sc, spark.sqlContext, file['hes_patient']).select(['patid', 'gen_ethnicity'])
+
+    ethnicity = ethnicity.withColumn(
+        "gen_ethnicity_mapped",
+        F.expr(
+            """
+            CASE gen_ethnicity
+                WHEN 'Bangladesi' THEN 'Asian'
+                WHEN 'Bl_Carib' THEN 'Black'
+                WHEN 'Indian' THEN 'Asian'
+                WHEN 'Chinese' THEN 'Asian'
+                WHEN 'Pakistani' THEN 'Asian'
+                WHEN 'Bl_Other' THEN 'Black'
+                WHEN 'White' THEN 'White'
+                WHEN 'Bl_Afric' THEN 'Black'
+                WHEN 'Oth_Asian' THEN 'Asian'
+                WHEN 'Mixed' THEN 'Other'
+                WHEN 'Other' THEN 'Other'
+                WHEN 'Unknown' THEN 'Unknown'
+                ELSE 'Unknown'
+            END
+            """
+        ),
+    )
+    return ethnicity

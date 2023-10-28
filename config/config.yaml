@@ -26,6 +26,7 @@ file_path:
   sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
   imd: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/patient_imd2015_20_095.txt
   PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiled_MD_30Jan2023
+  hes_patient: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hes_patient_20_095_DM.txt
 
 params:
   bnf_mapping: true

@@ -140,11 +140,11 @@ class PredictorExtractorBase:
 
 
 class BEHRTextraction(PredictorExtractorBase):
-    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year' , col_code='code', unique_in_months=None):
+    def format_behrt(self, data, demographics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year' , col_code='code', unique_in_months=None):
         """
 
         :param data: the records - e.g., med or disease records
-        :param demorgraphics: the demo file for the work
+        :param demographics: the demo file for the work
         :param col_entry: the column to get the study entry variable (when to stop getting records)
         :param col_yob: the column to get the yob variable
         :param age_col_name: the column for the age variables
@@ -153,7 +153,7 @@ class BEHRTextraction(PredictorExtractorBase):
         :return:  dataframe with behrt formatted data
         """
         # merge records and hf_cohort, and keep only records within the time period
-        data = data.join(demorgraphics, 'patid', 'inner').dropna() \
+        data = data.join(demographics, 'patid', 'inner').dropna() \
             .where(F.col('eventdate') <= F.col(col_entry))
         data = data.dropDuplicates(['patid', 'eventdate', col_code]).dropna()
 
@@ -203,9 +203,9 @@ class BEHRTextraction(PredictorExtractorBase):
 
 
 class BEHRTCausal(PredictorExtractorBase):
-    def format_behrt(self, data, demorgraphics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year', col_code='code',unique_per_year=False , explabel='explabel', exclcode = None):
+    def format_behrt(self, data, demographics, col_entry='study_entry', col_yob='dob', age_col_name='age', year_col_name='year', col_code='code',unique_per_year=False , explabel='explabel', exclcode = None):
         # merge records and hf_cohort, and keep only records within the time period
-        data = data.join(demorgraphics, 'patid', 'inner').dropna() \
+        data = data.join(demographics, 'patid', 'inner').dropna() \
             .where(F.col('eventdate') <= F.col(col_entry))
         if exclcode is not None:
             # print(data.count())

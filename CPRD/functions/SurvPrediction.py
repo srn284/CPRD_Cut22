@@ -49,7 +49,6 @@ class SurvRiskPredictionBase:
         #   (3) event between study entry and endfollowup -> event = 1, time = eventdate
 
         demographics = demographics.withColumn('endfollowupdate' , F.least(F.col('enddate'), F.col('endfollowupdate')))
-
         demographics_no_event = demographics.filter(F.col('eventdate').isNull())\
             .withColumn('label', F.lit(0)).withColumn('time2event', F.least(F.col('enddate'), F.col('endfollowupdate')))
 
@@ -60,7 +59,7 @@ class SurvRiskPredictionBase:
         demographics_with_event_a = demographics_with_event.filter(F.col('eventdate') > F.col('endfollowupdate'))\
             .withColumn('label', F.lit(0)).withColumn('time2event',F.least(F.col('enddate'), F.col('endfollowupdate')))
         demographics_with_event_b = demographics_with_event.\
-            filter((F.col('eventdate') < F.col('endfollowupdate')) & (F.col('eventdate') > F.col('study_entry')))\
+            filter((F.col('eventdate') <= F.col('endfollowupdate')) & (F.col('eventdate') > F.col('study_entry')))\
             .withColumn('label', F.lit(1)).withColumn('time2event', F.col('eventdate'))
 
         # 'startdate', 'enddate', 'eventdate', 'label', 'time2event'

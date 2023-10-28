@@ -47,24 +47,24 @@ class SurvRiskPredictionBase:
         #   (2) event after endfollowup -> event = 0, time = endfollowupdate
         #   (3) event between study entry and endfollowup -> event = 1, time = eventdate
         demographics_no_event = demographics.filter(F.col('eventdate').isNull())\
-            .withColumn('event', F.lit(0)).withColumn('time', F.least(F.col('enddate'), F.col('endfollowupdate')))
+            .withColumn('label', F.lit(0)).withColumn('time2event', F.least(F.col('enddate'), F.col('endfollowupdate')))
 
         demographics_with_event = demographics.filter(F.col('eventdate').isNotNull())\
             .filter(F.col('eventdate') > F.col('study_entry')).cache()
         demographics_with_event_a = demographics_with_event.filter(F.col('eventdate') > F.col('endfollowupdate'))\
-            .withColumn('event', F.lit(0)).withColumn('time', F.col('endfollowupdate'))
+            .withColumn('label', F.lit(0)).withColumn('time2event', F.col('eventdate'))
         demographics_with_event_b = demographics_with_event.\
             filter((F.col('eventdate') < F.col('endfollowupdate')) & (F.col('eventdate') > F.col('study_entry')))\
-            .withColumn('event', F.lit(1)).withColumn('time', F.col('eventdate'))
+            .withColumn('label', F.lit(1)).withColumn('time2event', F.col('eventdate'))
 
-        # 'startdate', 'enddate', 'eventdate', 'event', 'time'
+        # 'startdate', 'enddate', 'eventdate', 'label', 'time2event'
         demographics = demographics_no_event.union(demographics_with_event_a).union(demographics_with_event_b)\
             .drop('endfollowupdate')
 
-        # transform time from 'date' to 'months'
-        time2eventdiff = F.unix_timestamp('time', "yyyy-MM-dd") - F.unix_timestamp('study_entry', "yyyy-MM-dd")
-        demographics = demographics.withColumn('time', time2eventdiff)\
-            .withColumn('time', (F.col('time') / 3600 / 24 / 30).cast('integer'))
+        # transform time2event from 'date' to 'months'
+        time2eventdiff = F.unix_timestamp('time2event', "yyyy-MM-dd") - F.unix_timestamp('study_entry', "yyyy-MM-dd")
+        demographics = demographics.withColumn('time2event', time2eventdiff)\
+            .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer'))
         return demographics
 
     def prepareDeathCause(self, death, condition, column):

@@ -120,11 +120,9 @@ class CohortSoftCut(Cohort):
 
 
         # last start of study is the second element of the duration (the finish date)
-        demographics = demographics.withColumn('exit_date', F.to_date(F.lit(duration[1])))
 
-        demographics.withColumn('exit_datereal', F.least(F.col('exit_date'), F.to_date(F.lit(duration[1])),
-                                                         F.col('{}_dob'.format(self.greatest_age)))).drop(
-            'exit_date').withColumnRenamed('exit_datereal', 'exit_date')
+        demographics = demographics.withColumn('exit_date', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
+                                                                    F.col('{}_dob'.format(self.greatest_age))))
 
         # requirement of the start of study before the last date (enddate)
         demographics = demographics.where(F.col('study_entry') < F.col('enddate'))

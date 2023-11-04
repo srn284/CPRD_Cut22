@@ -276,6 +276,8 @@ class CausalBase:
         time2eventdiff = F.unix_timestamp('enddate', "yyyy-MM-dd") - F.unix_timestamp('study_entry', "yyyy-MM-dd")
         demographics = demographics.join(death, 'patid', 'left').withColumn('time2event', time2eventdiff) \
             .withColumn('time2event', (F.col('time2event') / 3600 / 24 / 30).cast('integer'))
+
+
         demographicsNULL = demographics.filter(F.col('label').isNull())
 
         demographicsNULL = demographicsNULL.withColumn('label', F.lit(0))

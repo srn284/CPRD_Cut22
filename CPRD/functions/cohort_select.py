@@ -111,22 +111,18 @@ class CohortSoftCut(Cohort):
         3) study_entry_date
 
         """
+
         demographics = self.standard_prepare(file, spark)
+        demographics = demographics.withColumn('start', F.greatest(F.col('least_gp_register_date'),
+                                                                   F.col('{}_dob'.format(self.least_age)),
+                                                                   F.to_date(F.lit(duration[0]))))
 
-        demographics = demographics.withColumn('study_entry', F.to_date(F.lit(duration[0])))
-        # study entry is greatest of three as described above
-        demographics = demographics.withColumn('study_entry_real', F.greatest('{}_dob'.format(self.least_age), 'least_gp_register_date', 'study_entry'))\
-            .drop('study_entry') .withColumnRenamed("study_entry_real", "study_entry")
+        demographics = demographics.withColumn('end', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
+                                                              F.col('{}_dob'.format(self.greatest_age))))
 
+        demographics = demographics.where(F.col('start') < F.col('end'))
+        demographics = demographics.withColumn('study_entry', F.col('start'))
 
-        # last start of study is the second element of the duration (the finish date)
-
-        demographics = demographics.withColumn('exit_date', F.least(F.col('enddate'), F.to_date(F.lit(duration[1])),
-                                                                    F.col('{}_dob'.format(self.greatest_age))))
-
-        # requirement of the start of study before the last date (enddate)
-        demographics = demographics.where(F.col('study_entry') < F.col('enddate'))
-        demographics = demographics.where(F.col('study_entry') < F.col('exit_date'))
 
         return demographics
 

@@ -162,6 +162,7 @@ def mergeDict(elementalDict):
         tempCollection[key] = outputs[iterel]
     collectionDict= {}
     collectionDict['merged']= tempCollection
+
     return collectionDict
 
 

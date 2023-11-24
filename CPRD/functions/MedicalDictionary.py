@@ -155,8 +155,9 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
             print('Element not in disease dictionary')
             return None
         else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
+            if merge and type(queryItem) != str and len(queryOut) > 1 :
                 queryOut = mergeDict(queryOut)
+
 
             return queryOut
 
@@ -168,7 +169,7 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
             print('Element not in measurement dictionary')
             return None
         else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
+            if merge and type(queryItem) != str and len(queryOut) > 1 :
                 queryOut = mergeDict(queryOut)
 
             return queryOut
@@ -181,7 +182,7 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
             print('Element not in procedure dictionary')
             return None
         else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
+            if merge and type(queryItem) != str and len(queryOut) > 1 :
                 queryOut = mergeDict(queryOut)
 
             return queryOut
@@ -194,7 +195,7 @@ class MedicalDictionaryRiskPrediction(MedicalDictionaryBase):
             print('Element not in medication dictionary')
             return None
         else:
-            if merge and type(queryItem) != str and len(queryItem) > 1:
+            if merge and type(queryItem) != str and len(queryOut) > 1 :
                 queryOut = mergeDict(queryOut)
 
             return queryOut

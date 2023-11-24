@@ -58,6 +58,10 @@ class Clinical(DataFrame):
     def filter_byid(self, id_str):
         """remove the rows which are not obs_id"""
         return Clinical (self.where((F.col('obstypeid')==id_str)))
+    def filter_byidlist(self, id_str):
+        """remove the rows which are not obs_ids (could be in a list of ids)"""
+        return Clinical (self.filter(F.col('obstypeid').isin(id_str)))
+
 
 
 class Consultation(DataFrame):

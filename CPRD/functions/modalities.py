@@ -296,15 +296,62 @@ def retrieve_smoking_status(file, spark, duration=(1985, 2021)):
     :return: ['patid', 'eventdate', 'smoke']
     """
     condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
-    smoke = condition_query.queryMeasurement(['smoking+yes'], merge=True)['smoking+yes']['medcode']
-    ex_smoke = condition_query.queryMeasurement(['smoking+ex'], merge=True)['smoking+ex']['medcode']
-    no_smoke = condition_query.queryMeasurement(['smoking+no'], merge=True)['smoking+no']['medcode']
+    smokecode = condition_query.queryMeasurement(['smoking+yes'], merge=True)['smoking+yes']['medcode']
+    ex_smokecode = condition_query.queryMeasurement(['smoking+ex'], merge=True)['smoking+ex']['medcode']
+    no_smokecode = condition_query.queryMeasurement(['smoking+no'], merge=True)['smoking+no']['medcode']
 
-    smoke = retrieve_by_enttype(file, spark, enttype=smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(1))
-    ex_smoke = retrieve_by_enttype(file, spark, enttype=ex_smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(2))
-    no_smoke = retrieve_by_enttype(file, spark, enttype=no_smoke, id_str='10', duration=duration).withColumn('smoke', F.lit(3))
+    allcodes_smoke = smokecode+ex_smokecode+no_smokecode
+    allsmoke = retrieve_by_enttype(file, spark, enttype=allcodes_smoke, id_str='10', duration=duration)
+
+    smoke = allsmoke.filter(F.col('medcode').isin(smokecode)).withColumn('smoke', F.lit(1))
+    ex_smoke = allsmoke.filter(F.col('medcode').isin(ex_smokecode)).withColumn('smoke', F.lit(2))
+    no_smoke = allsmoke.filter(F.col('medcode').isin(no_smokecode)).withColumn('smoke', F.lit(3))
 
     return smoke.union(ex_smoke).union(no_smoke).select('patid', 'eventdate', 'smoke')
+
+
+def retrieve_nyha_status(file, spark, duration=(1985, 2021)):
+    """
+    get the smoking status
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'smoke']
+    """
+
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+
+    lv1codes = condition_query.queryMeasurement(['new york heart association heart failure classification 1'])[
+        'new york heart association heart failure classification 1']['medcode']
+
+    lv2codes = condition_query.queryMeasurement(['new york heart association heart failure classification 2'])[
+        'new york heart association heart failure classification 2']['medcode']
+
+    lv3codes = condition_query.queryMeasurement(['new york heart association heart failure classification 3'])[
+        'new york heart association heart failure classification 3']['medcode']
+
+    lv4codes = condition_query.queryMeasurement(['new york heart association heart failure classification 4'])[
+        'new york heart association heart failure classification 4']['medcode']
+
+    nyha_allother = condition_query.queryMeasurement(['new york heart association heart failure classification'])[
+        'new york heart association heart failure classification']['medcode']
+
+    allnyhacodes = lv1codes + lv2codes + lv3codes + lv4codes + nyha_allother
+
+
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark).filter(F.col('obstypeid').isin(['7', '10']))
+    clinical = clinical.filter(F.col('medcode').isin(allnyhacodes))
+    allnyha = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
+    propercols = ['patid', 'eventdate', 'pracid', 'medcode', 'nyha']
+    lv1 = allnyha.filter(F.col('medcode').isin(lv1codes)).withColumn('nyha', F.lit(1)).select(propercols)
+    lv2 = allnyha.filter(F.col('medcode').isin(lv2codes)).withColumn('nyha', F.lit(2)).select(propercols)
+    lv3 = allnyha.filter(F.col('medcode').isin(lv3codes)).withColumn('nyha', F.lit(3)).select(propercols)
+    lv4 = allnyha.filter(F.col('medcode').isin(lv4codes)).withColumn('nyha', F.lit(4)).select(propercols)
+    allother = allnyha.filter(F.col('medcode').isin(nyha_allother)).withColumnRenamed('value', 'nyha').select(
+        propercols)
+
+
+    return allother.union(lv1).union(lv2).union(lv3).union(lv4)
 
 
 def retrieve_diastolic_bp_measurement(file, spark, duration=(1985, 2021), usable_range=(10, 140)):

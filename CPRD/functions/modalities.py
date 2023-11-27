@@ -262,7 +262,7 @@ def retrieve_nt_probnp(file, spark, duration=(1985, 2021), usable_range=(0, 1000
     :param duration:
     :return: ['patid', 'eventdate', 'ntprobnp']
     """
-    ntprobnp = [6864871000006115]
+    ntprobnp = ['6864871000006115']
     ntprobnp = retrieve_by_enttype(file, spark, enttype=ntprobnp, id_str='10', duration=duration)
     ntprobnp = ntprobnp.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
     ntprobnp = ntprobnp.filter((F.col('value').isNotNull()))

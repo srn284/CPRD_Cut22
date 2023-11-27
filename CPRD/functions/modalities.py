@@ -253,15 +253,32 @@ def retrieve_hdlr(file, spark, duration=(1985, 2021), usable_range=(0, 10)):
 
     return hdlr
 
-def retrieve_sodium(file, spark, duration=(1985, 2021), usable_range=(20, 200)):
+
+def retrieve_nt_probnp(file, spark, duration=(1985, 2021), usable_range=(0, 1000)):
     """
+    retrive nt_probnp from additional
     :param file:
     :param spark:
     :param duration:
+    :return: ['patid', 'eventdate', 'ntprobnp']
     """
-    sodium = ['259010012', '259011011', '5514121000006114', '404493014', '4113021000006114', '5514131000006112', \
-            '284446019', '6277651000006115', '4113031000006112', '6277661000006118', '6277671000006113']
+    ntprobnp = [6864871000006115]
+    ntprobnp = retrieve_by_enttype(file, spark, enttype=ntprobnp, id_str='10', duration=duration)
+    ntprobnp = ntprobnp.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    ntprobnp = ntprobnp.filter((F.col('value').isNotNull()))
+    ntprobnp = ntprobnp.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('ntprobnp'))
 
+    return ntprobnp
+def retrieve_sodium(file, spark, duration=(1985, 2021), usable_range=(80, 230)):
+    """
+    retrive sodium from additional
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'sodium']
+    """
+    sodium = ['4113021000006114', '284446019','4113031000006112',]
     sodium = retrieve_by_enttype(file, spark, enttype=sodium, id_str='10', duration=duration)
     sodium = sodium.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
     sodium = sodium.filter((F.col('value').isNotNull()))

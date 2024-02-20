@@ -24,14 +24,5 @@ spark.py set up functions to initialise pyspark, which is then used for data pro
 table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder
 ## task
 task defines the real task
-## run the script
-```shell
-python main.py --params config/XXX.yaml --save_path XXX.
-```
-
-example is:
- ```shell
-python main.py --params config/config.yaml --save_path config/
-```
-
-params is the location of yaml file, and save_path is the directory to save final results
+## debug
+debug folder has tutorials

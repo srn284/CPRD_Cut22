@@ -4,6 +4,8 @@ This package is for the newer cut of CPRD (Aurum). While the functionality of ma
 In addition, while no figure is provided, this package serves to link data from Hospital Episode Statistics (HES), Office of National Statistics (ONS) mortality data, and other socio-economic data provided for linkage. 
 
 Lastly, various mappings between disease/drug codes are provided with the package. The user needs to specify source files for mapping, and appropriate mappings will be conducted by functions in the package (e.g., see modalities.py file).
+
+The visualization for three strategies of cohort selection is in the following way: ![Screenshot](./CPRD/functions/Cohort%20Selection%20Figure_Wei.pdf)
 # Structure
 As seen in figure above, the patient and practice files are central for a lot of linkage. Practice and patient IDs are the elements that link various sources of data together. The same can be said when extended to HES. Other secondary IDs are indeed used (e.g., observation id) but not extensively. 
 

@@ -23,8 +23,6 @@ config includes yaml file which specifies all parameters for genearting data
 ## CPRD
 this folder includes 4 components:  
 spark.py set up functions to initialise pyspark, which is then used for data processing.
-table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder
-## task
-task defines the real task
+table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder. Furthermore, in functions, we have now provided visuals of the various cohort selection procedures that you can use for identifying appropriate subset of patients and respect baseline/index date/study entry dates.
 ## debug
 debug folder has tutorials

@@ -26,3 +26,19 @@ spark.py set up functions to initialise pyspark, which is then used for data pro
 table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder. Furthermore, in functions, we have now provided visuals of the various cohort selection procedures that you can use for identifying appropriate subset of patients and respect baseline/index date/study entry dates.
 ## debug
 debug folder has tutorials
+
+
+# Fast Setup your Environment (Update by Wei)
+Supposing you are in your personal dir of DM server, follow these steps:
+
+Step 1: Run
+```shell
+cp /home/shared/wfan/Anaconda3-2020.02-Linux-x86_64.sh ./
+cp /home/shared/wfan/spark.txt ./
+```
+
+Step 2: install anaconda and requirement envs
+```shell
+bash Anaconda3-2020.02-Linux-x86_64.sh
+pip install -r spark.txt
+```

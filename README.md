@@ -4,6 +4,8 @@ This package is for the newer cut of CPRD (Aurum). While the functionality of ma
 In addition, while no figure is provided, this package serves to link data from Hospital Episode Statistics (HES), Office of National Statistics (ONS) mortality data, and other socio-economic data provided for linkage. 
 
 Lastly, various mappings between disease/drug codes are provided with the package. The user needs to specify source files for mapping, and appropriate mappings will be conducted by functions in the package (e.g., see modalities.py file).
+
+The visualization for three strategies of cohort selection is in the following way: ![Screenshot](./CPRD/functions/Cohort%20Selection%20Figure_Wei.pdf)
 # Structure
 As seen in figure above, the patient and practice files are central for a lot of linkage. Practice and patient IDs are the elements that link various sources of data together. The same can be said when extended to HES. Other secondary IDs are indeed used (e.g., observation id) but not extensively. 
 
@@ -21,17 +23,24 @@ config includes yaml file which specifies all parameters for genearting data
 ## CPRD
 this folder includes 4 components:  
 spark.py set up functions to initialise pyspark, which is then used for data processing.
-table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder
-## task
-task defines the real task
-## run the script
+table.py includes fundamental functions to process each table in CPRD, and utils includes commonly used functions for data processing. functions includes functions for data processing, this is a more specific function folder. Furthermore, in functions, we have now provided visuals of the various cohort selection procedures that you can use for identifying appropriate subset of patients and respect baseline/index date/study entry dates.
+## debug
+debug folder has tutorials
+
+
+# Fast Setup your Environment (Update by Wei)
+Supposing you are in your personal dir of DM server, follow these steps:
+
+Step 1: Run
 ```shell
-python main.py --params config/XXX.yaml --save_path XXX.
+cp /home/shared/wfan/Anaconda3-2020.02-Linux-x86_64.sh ./
+cp /home/shared/wfan/spark.txt ./
 ```
 
-example is:
- ```shell
-python main.py --params config/config.yaml --save_path config/
+Step 2: install anaconda and requirement envs
+```shell
+bash Anaconda3-2020.02-Linux-x86_64.sh
+conda create -n <your-env-name> python=3.7
+conda activate <your-env-name>
+pip install -r spark.txt
 ```
-
-params is the location of yaml file, and save_path is the directory to save final results

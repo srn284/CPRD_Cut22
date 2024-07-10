@@ -151,6 +151,7 @@ def retrieve_death(dir, spark):
     """
 
     death = read_txt(spark.sc, spark.sqlContext, path=dir)
+    #death = death_e eligible linkage with death NEEDED!!!!
     death = death.withColumn('dod', cvt_str2time(death, 'dod', year_first=False))
     death = death.withColumn('goodstart', F.to_date(F.lit(DICT2KEEP['ons_death'][0])  , 'dd/MM/yyyy')  ) \
         .withColumn('goodend', F.to_date(F.lit(DICT2KEEP['ons_death'][1]), 'dd/MM/yyyy'))
@@ -289,6 +290,13 @@ def retrieve_procedure(dir, spark):
 
 
 def retrieve_lab_test(dir, spark):
+    test = read_txtzip(spark.sc, spark.sqlContext, dir).drop('staffid').drop('sysdate')
+    test = test.withColumn('eventdate', cvt_str2time(test, 'eventdate'))
+    return test
+
+
+
+def retrieve_referral(dir, spark):
     test = read_txtzip(spark.sc, spark.sqlContext, dir).drop('staffid').drop('sysdate')
     test = test.withColumn('eventdate', cvt_str2time(test, 'eventdate'))
     return test

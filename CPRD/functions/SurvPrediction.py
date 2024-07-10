@@ -83,3 +83,5 @@ class SurvRiskPredictionBase:
             .filter(F.col('cause').isin(*condition))
         death = death.groupBy('patid').agg(F.first('dod').alias('eventdate'), F.first('cause').alias(column))
         return death
+
+

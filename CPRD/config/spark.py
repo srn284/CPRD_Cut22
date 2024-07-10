@@ -10,7 +10,7 @@ class spark_init(object):
 
         self.sc, self.sqlContext = self._init_spark(name=name)
 
-    def _setup_spark(self, pyspark_env, temp, memory='300g', excutors='4', exe_mem='50g', result_size='80g', offHeap='24g'):
+    def _setup_spark(self, pyspark_env, temp, memory='500g', excutors='16', exe_mem='100g', result_size='80g', offHeap='24g'):
         """ set up pyspark enviroment for data preprocessing
             pyspark_env is the python evironment for spark, for example, pip install pyspark, need to properly
             configutre the enviroment for pyspark

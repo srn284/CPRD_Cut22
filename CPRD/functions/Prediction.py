@@ -351,7 +351,7 @@ class OutcomePrediction(PredBase):
         :param death: death table (none if above is false)
         :param column_condition: column that has the diags or meds or whatever modality we are wanting to look for label
         :param incidence: True if we are looking for incident lable
-        :param prevalent_conditions: if incidence is false, then what are some prevalent conditions we are allowing to look for (a subset of the labels)
+        :param prevalent_conditions: if incidence is false, then what are some prevalent conditions we are allowing to look for (i.e., a subset of the labels)
         :return: cohort file with baseline, and label, and time2event as well
         """
 

@@ -108,7 +108,6 @@ def retrieve_diagnoses(file, spark, mapping ='sno2icd' ,  duration=(1985,2021), 
     data = check_time(data, 'eventdate', time_a=duration[0], time_b=duration[1])
     data = data.dropDuplicates()
     return data
-
 def retrieve_diagnoses_cprd(file, spark, mapping ='sno2icd' , duration=(1985,2021), demographics=None, practiceLink=True):
     """
     file contains all necessary file for processing
@@ -210,7 +209,7 @@ def retrieve_by_enttype(file, spark, enttype, id_str='10', duration=(1985, 2021)
     if type(enttype) is not list:
         enttype = [enttype]
 
-    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark).filter_byid(id_str)
+    clinical = tables.retrieve_clinical(dir=file['clinical'], spark=spark)
     clinical = clinical.filter(F.col('medcode').isin(enttype))
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
     return clinical
@@ -234,7 +233,24 @@ def retrieve_bmi(file, spark, duration=(1985, 2021), usable_range=(5, 50)):
         .agg(F.mean('value').alias('bmi'))
 
     return bmi
+def retrieve_tchdlratio(file, spark, duration=(1985, 2021), usable_range=(0, 50)):
+    """
+    retrive tchdlrat from additional
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'tchdlrat']
+    """
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+    codesrat = ['259250015', '856761000006115', '458249011', '458252015', '8396611000006112']
 
+    tchdlrat = retrieve_by_enttype(file, spark, enttype=codesrat, id_str='10', duration=duration)
+    tchdlrat = tchdlrat.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    tchdlrat = tchdlrat.filter((F.col('value').isNotNull()))
+    tchdlrat = tchdlrat.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('tchdl_rat'))
+
+    return tchdlrat
 def retrieve_hdlr(file, spark, duration=(1985, 2021), usable_range=(0, 10)):
     """
     retrive bmi from additional
@@ -302,6 +318,67 @@ def retrieve_drinking_status(file, spark, duration=(1985, 2021)):
         .agg(F.mean('value').alias('alcohol'))
 
     return drink
+
+
+def retrieve_smoking_level_status(file, spark, duration=(1985, 2021)):
+    """
+    get the smoking status
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'smoke']
+    """
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+
+    heavy = ['3422221000006116', '5003181000006112', '67621000006112', '819331000006110', '855001000006114']
+    non = ['1154431000000112', '4120291000006119', '4120281000006117', '4120301000006118', '6217561000006111',
+           '903051000006112', '14866014', '5495921000006119', '854951000006113', '4427811000006111', '3926051000006118',
+           '250374013', '6217461000006110', '1123751000000113', '397732011', '459702016'] + ['1009271000006120',
+                                                                                             '1488666019',
+                                                                                             '1009271000006118',
+                                                                                             '904111000006113',
+                                                                                             '1154431000000110']
+    ex = ['1059701000000120', '1151791000000120'] + ['418914010', '6217151000006116', '2735381000000111',
+                                                     '2735201000000112', '3513199018', '4980561000006117',
+                                                     '250363016', '250364010', '250365011', '250367015',
+                                                     '649831000006117', '298701000000114', '2735421000000119',
+                                                     '4980771000006118', '649851000006112', '853001000006110',
+                                                     '7568991000006119', '3374141000006117', '250371017',
+                                                     '1059701000000119', '903041000006110', '854111000006110',
+                                                     '3513101011', '2735331000000112',
+                                                     '2735281000000119', '6217281000006116', '2735181000000113',
+                                                     '2636041000006110', '5496031000006112',
+                                                     '1599721000006113', '649821000006115', '250366012',
+                                                     '854051000006112', '342602019', '250385010',
+                                                     '649861000006114', '852991000006114', '250373019',
+                                                     '8017571000006117', '649841000006110']
+    light = ['72373013'] + ['136515019', '216212011', '344794017', '344795016', '1780360012', '2669652019',
+                            '137711000006111',
+                            '854021000006115', '903981000006117', '904031000006115', '1809121000006113',
+                            '137791000006118',
+                            '5495941000006114', '8153381000006119', '5495901000006112', '12482301000006115',
+                            '11904991000006116',
+                            '4948531000006116', '5003191000006110', '102921000006112', '250369017', '397733018',
+                            '2670126018',
+                            '137721000006115', '250387019', '1488576014', '108938018', '1592611000000110',
+                            '904001000006111',
+                            '854071000006119', '854961000006110', '503483019', '5003151000006116', '88471000006112',
+                            '8153371000006117', '1488577017', '250372012', '743331000006116', '7375991000006118',
+                            '604961000006114',
+                            '1488578010', '99639019', '128130017', '250368013', '5003141000006118', '4533531000006119',
+                            '5495951000006111', '2170961000000116', '852981000006111', '2474719011', '344793011',
+                            '250375014']
+    mod = ['854981000006117', '700121000006118', '5003161000006119', '3419101000006116']
+
+    allcodes_smoke = non + ex + light + mod + heavy
+    labelforsmoke = [0] * len(non) + [1] * len(ex) + [2] * len(light) + [3] * len(mod) + [4] * len(heavy)
+    smokelevels = pd.DataFrame(np.array([allcodes_smoke, labelforsmoke]).transpose()).rename(
+        columns={0: 'medcode', 1: 'smoke'})
+    smoke2join = spark.sqlContext.createDataFrame(smokelevels)
+
+    allsmoke = retrieve_by_enttype(file, spark, enttype=allcodes_smoke, id_str='10', duration=duration)
+    allsmoke = allsmoke.join(smoke2join, 'medcode', 'inner')
+    return allsmoke.select('patid', 'eventdate', 'smoke')
 
 
 def retrieve_smoking_status(file, spark, duration=(1985, 2021)):
@@ -447,6 +524,23 @@ def retrieve_creatinine_measurement(file, spark, duration=(1985, 2021), usable_r
 
     return creat
 
+def retrieve_LVEF_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 100)):
+    """
+    get the egfr measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'eGFR']
+    """
+
+    lvef = retrieve_by_enttype(file, spark, enttype=['5292721000006113'], duration=duration)
+    lvef = lvef.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    lvef = lvef.filter( (F.col('value').isNotNull()))
+    lvef = lvef.groupby(['patid', 'eventdate'])\
+        .agg(F.mean('value').alias('lvef'))
+
+    return lvef
+
 def retrieve_eGFR_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 250)):
     """
     get the egfr measurement, systolic pressure (high number)
@@ -465,7 +559,6 @@ def retrieve_eGFR_measurement(file, spark, duration=(1985, 2021), usable_range=(
         .agg(F.mean('value').alias('eGFR'))
 
     return egfr
-
 def retrieve_imd(file, spark):
     """
     retrieve imd (update still 2015_5)
@@ -605,6 +698,32 @@ def retrieve_ethnicity(file, spark):
                 WHEN 'Other' THEN 'Other or Unknown'
                 WHEN 'Unknown' THEN 'Other or Unknown'
                 ELSE 'Other or Unknown'
+            END
+            """
+        ),
+    )
+    return ethnicity
+def retrieve_rawethnicity(file, spark):
+    ethnicity = read_txt(spark.sc, spark.sqlContext, file['hes_patient']).select(['patid', 'gen_ethnicity'])
+
+    ethnicity = ethnicity.withColumn(
+        "gen_ethnicity_mapped",
+        F.expr(
+            """
+            CASE gen_ethnicity
+                WHEN 'Bangladesi' THEN 'Bangladesi'
+                WHEN 'Bl_Carib' THEN 'Bl_Carib'
+                WHEN 'Indian' THEN 'Indian'
+                WHEN 'Chinese' THEN 'Chinese'
+                WHEN 'Pakistani' THEN 'Pakistani'
+                WHEN 'Bl_Other' THEN 'Bl_Other'
+                WHEN 'White' THEN 'White'
+                WHEN 'Bl_Afric' THEN 'Bl_Afric'
+                WHEN 'Oth_Asian' THEN 'Oth_Asian'
+                WHEN 'Mixed' THEN 'Other'
+                WHEN 'Other' THEN 'Other'
+                WHEN 'Unknown' THEN 'Unknown'
+                ELSE 'Unknown'
             END
             """
         ),

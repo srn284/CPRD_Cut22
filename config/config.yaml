@@ -7,6 +7,7 @@ file_path:
   patient: /home/workspace/datasets/cprd/cprd2021/*/*_Patient_*
   problem: /home/workspace/datasets/cprd/cprd2021/*/*_Problem_*
   therapy: /home/workspace/datasets/cprd/cprd2021/*/*_DrugIssue_*
+  referral: /home/workspace/datasets/cprd/cprd2021/*/*_Referral_*
   practice:  /home/workspace/datasets/cprd/cprd2021/*/*_Practice_*
   consultation: /home/workspace/datasets/cprd/cprd2021/*/*_Consultation_*
   staff: /home/workspace/datasets/cprd/cprd2021/*/*_Staff*
@@ -28,6 +29,7 @@ file_path:
   sno2icd:  /home/shared/shishir/AurumOut/Dicts/snomed2icd.parquet
   imd: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/patient_imd2015_20_095.txt
   PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiled_MD_23Nov2023
+  diag2keep: /home/shared/shishir/AurumOut/Dicts/diagcodes2keep.parquet
 #  PhenoMaps: /home/shared/shishir/AurumOut/Dicts/compiled_MD_30Jan2023
 #
   hes_patient: /home/workspace/datasets/cprd/cprd2021/linkage/20_095_Results/*/Aurum_linked/Final/hes_patient_20_095_DM.txt

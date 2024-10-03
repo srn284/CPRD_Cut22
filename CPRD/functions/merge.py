@@ -42,7 +42,25 @@ def bnf_mapping(crossmap, therapy):
     therapy = therapy.drop('bnfcode').join(crossmap, 'prodcode', 'left').dropna().dropDuplicates()
     return therapy
 
+def code_merge(code_dict, name):
+    code = []
+    for k,v in code_dict[name].items():
+        code.extend(v)
+    return code
 
+
+def convicd(l):
+    out = []
+    for x in l:
+        for y in ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            out.append(x + y)
+
+    return out
+def code_flatten(code_dict):
+    code = []
+    for k,v in code_dict.items():
+        code.extend(v)
+    return code
 def med2read_mapping(crossmap, clinical):
     """
     cross map med code in clinical table to read code

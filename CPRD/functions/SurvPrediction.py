@@ -14,7 +14,7 @@ class SurvRiskPredictionBase:
     def __init__(self, follow_up_duration_month):
         self.follow_up_duration = follow_up_duration_month
 
-    def setupEventAndTime(self, demographics, source, condition, column, death=None):
+    def setupEventAndTime(self, demographics, source, condition, column, death=None, incidence=True):
         """
         demographics: study_entry (baseline), startdate (earliest available date), enddate (last collect/dod)
         source: patid, eventdate, code
@@ -26,6 +26,12 @@ class SurvRiskPredictionBase:
 
         # keep records that belongs to a condtion provided by condition list
         source = source.filter(F.col(column).isin(*condition)).select(['patid', 'eventdate', column])
+        if incidence==False:
+            print('event capture, NOT necessarily incidence capture...')
+            sourcecol = source.columns
+            source = source.join(demographics[['patid','study_entry']],'patid','inner' )
+            source = source.filter(F.col('eventdate')>=F.col('study_entry'))
+            source = source.select(sourcecol)
 
         # take first of the eventdate by patid
         w = Window.partitionBy('patid').orderBy('eventdate')

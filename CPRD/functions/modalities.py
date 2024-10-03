@@ -170,6 +170,7 @@ def retrieve_diagnoses_cprd(file, spark, mapping ='sno2icd' , duration=(1985,202
 
     return clinical
 
+
 def retrieve_diagnoses_hes(file, spark, duration=(1985,2021), demographics = None):
     """
     file contains all necessary file for processing
@@ -214,6 +215,17 @@ def retrieve_by_enttype(file, spark, enttype, id_str='10', duration=(1985, 2021)
     clinical = check_time(clinical, 'eventdate', time_a=duration[0], time_b=duration[1])
     return clinical
 
+
+
+def split_combine_diag(spark, path):
+    allDiag = read_parquet(spark.sqlContext,path)
+
+    GPdiags = allDiag[allDiag.source == 'CPRD']
+    GPdiags = GPdiags.select(['patid', 'eventdate', 'medcode']).withColumnRenamed('medcode', 'code')
+    HESdiags = allDiag[allDiag.source == 'HES']
+    HESdiags = HESdiags.select(['patid', 'eventdate', 'ICD']).withColumnRenamed('ICD', 'code')
+    allDiag_output = GPdiags.union(HESdiags)
+    return allDiag_output
 
 def retrieve_bmi(file, spark, duration=(1985, 2021), usable_range=(5, 50)):
     """

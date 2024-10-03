@@ -146,7 +146,9 @@ class CohortSoftCut(CausalCohort):
                       'startdate', 'enddate', 'exit_date'] + ['expCode', 'exp_label']
         if randomNeg:
             rand_generate = F.udf(lambda x: random.randrange(x), IntegerType())
-            neg = neg.withColumn('diff', F.datediff(F.col('exit_date'), F.col('study_entry'))) \
+            neg = neg.withColumn('minEndExitdate' , F.least('exit_date', 'enddate'))
+
+            neg = neg.withColumn('diff', F.datediff(F.col('minEndExitdate'), F.col('study_entry'))) \
                 .withColumn('diff', rand_generate('diff')) \
                 .withColumn('eventdate', F.expr("date_add(study_entry, diff)")).drop('diff')
 

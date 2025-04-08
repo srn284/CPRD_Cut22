@@ -52,9 +52,12 @@ def code_merge(code_dict, name):
 def convicd(l):
     out = []
     for x in l:
-        for y in ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
-            out.append(x + y)
+        if len(x) < 4:
 
+            for y in ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+                out.append(x + y)
+        else:
+            out.append(x)
     return out
 def code_flatten(code_dict):
     code = []

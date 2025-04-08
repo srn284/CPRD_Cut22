@@ -51,6 +51,10 @@ class PredictorExtractorBase:
             df = df.withColumn(col, F.last(col).over(w)).groupBy('patid').agg(F.mean(col).alias(col))
         elif type == 'std':
             df = df.withColumn(col, F.last(col).over(w)).groupBy('patid').agg(F.stddev(col).alias(col))
+
+        elif type == 'max':
+            df = df.withColumn(col, F.last(col).over(w)).groupBy('patid').agg(F.max(col).alias(col))
+
         else:
             raise ValueError('type need to be set as either last, or var, or mean')
 

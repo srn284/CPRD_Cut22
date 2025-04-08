@@ -30,7 +30,7 @@ class SurvRiskPredictionBase:
             print('event capture, NOT necessarily incidence capture...')
             sourcecol = source.columns
             source = source.join(demographics[['patid','study_entry']],'patid','inner' )
-            source = source.filter(F.col('eventdate')>=F.col('study_entry'))
+            source = source.filter(F.col('eventdate')>F.col('study_entry'))
             source = source.select(sourcecol)
 
         # take first of the eventdate by patid
@@ -41,7 +41,7 @@ class SurvRiskPredictionBase:
         )
 
         # demographic has ['startdate', 'enddate', 'eventdate', 'endfollowupdate']
-        demographics = demographics.join(source, 'patid', 'left').drop(column)
+        demographics = demographics.join(source, 'patid', 'left')
         demographics = demographics.withColumn('endfollowupdate', demographics.study_entry +
                                                F.expr('INTERVAL {} MONTHS'.format(self.follow_up_duration))).cache()
 

@@ -243,7 +243,7 @@ def retrieve_bilur_measurement(file, spark, duration=(1985, 2021), usable_range=
     bilur = bilur.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
     bilur = bilur.filter( (F.col('value').isNotNull()))
     bilur = bilur.groupby(['patid', 'eventdate'])\
-        .agg( F.mean('value').alias('systolic'))
+        .agg( F.mean('value').alias('bilur'))
 
     return bilur
 

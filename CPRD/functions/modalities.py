@@ -216,6 +216,62 @@ def retrieve_by_enttype(file, spark, enttype, id_str='10', duration=(1985, 2021)
     return clinical
 
 
+def retrieve_drinking_level_status(file, spark, duration=(1985, 2021)):
+    """
+    get the drinking status
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'drinke']
+    """
+    condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+
+    alcdrinkarr = [['105542008', 0],
+                   ['160579004', 0],
+                   ['228274009', 0],
+                   ['783261004', 0],
+                   ['855071000006104', 0],
+                   ['160589000', 1],
+                   ['160590009', 1],
+                   ['160591008', 1],
+                   ['219006', 1],
+                   ['228276006', 1],
+                   ['228326007', 1],
+                   ['266917007', 1],
+                   ['447087000', 1],
+                   ['748381000000102', 1],
+                   ['777631000000108', 1],
+                   ['777671000000105', 1],
+                   ['160575005', 2],
+                   ['160593006', 2],
+                   ['228277002', 2],
+                   ['28127009', 2],
+                   ['855081000006101', 2],
+                   ['160576006', 3],
+                   ['160592001', 3],
+                   ['43783005', 3],
+                   ['855101000006109', 3],
+                   ['160577002', 4],
+                   ['855111000006107', 4],
+                   ['86933000', 4],
+                   ['160578007', 5],
+                   ['198421000000108', 5],
+                   ['198431000000105', 5],
+                   ['228279004', 5],
+                   ['228315001', 5],
+                   ['228316000', 5],
+                   ['228317009', 5]]
+
+    allcodes_drinke = [xx[0] for xx in alcdrinkarr]
+
+    drinkelevels = pd.DataFrame(np.array(alcdrinkarr)).rename(
+        columns={0: 'medcode', 1: 'drink'})
+    drinke2join = spark.sqlContext.createDataFrame(drinkelevels)
+
+    alldrinke = retrieve_by_enttype(file, spark, enttype=allcodes_drinke, id_str='10', duration=duration)
+    alldrinke = alldrinke.join(drinke2join, 'medcode', 'inner')
+    return alldrinke.select('patid', 'eventdate', 'drink')
+
 
 def split_combine_diag(spark, path):
     allDiag = read_parquet(spark.sqlContext,path)
@@ -363,6 +419,68 @@ def retrieve_smoking_level_status(file, spark, duration=(1985, 2021)):
     """
     condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
 
+    def retrieve_smoking_level_status(file, spark, duration=(1985, 2021)):
+        """
+        get the smoking status
+        :param file:
+        :param spark:
+        :param duration:
+        :return: ['patid', 'eventdate', 'smoke']
+        """
+        condition_query = MedicalDictionary.MedicalDictionaryRiskPrediction(file, spark)
+
+        heavy = ['3422221000006116', '5003181000006112', '67621000006112', '819331000006110', '855001000006114']
+        non = ['1154431000000112', '4120291000006119', '4120281000006117', '4120301000006118', '6217561000006111',
+               '903051000006112', '14866014', '5495921000006119', '854951000006113', '4427811000006111',
+               '3926051000006118',
+               '250374013', '6217461000006110', '1123751000000113', '397732011', '459702016'] + ['1009271000006120',
+                                                                                                 '1488666019',
+                                                                                                 '1009271000006118',
+                                                                                                 '904111000006113',
+                                                                                                 '1154431000000110']
+        ex = ['1059701000000120', '1151791000000120'] + ['418914010', '6217151000006116', '2735381000000111',
+                                                         '2735201000000112', '3513199018', '4980561000006117',
+                                                         '250363016', '250364010', '250365011', '250367015',
+                                                         '649831000006117', '298701000000114', '2735421000000119',
+                                                         '4980771000006118', '649851000006112', '853001000006110',
+                                                         '7568991000006119', '3374141000006117', '250371017',
+                                                         '1059701000000119', '903041000006110', '854111000006110',
+                                                         '3513101011', '2735331000000112',
+                                                         '2735281000000119', '6217281000006116', '2735181000000113',
+                                                         '2636041000006110', '5496031000006112',
+                                                         '1599721000006113', '649821000006115', '250366012',
+                                                         '854051000006112', '342602019', '250385010',
+                                                         '649861000006114', '852991000006114', '250373019',
+                                                         '8017571000006117', '649841000006110']
+        light = ['72373013'] + ['136515019', '216212011', '344794017', '344795016', '1780360012', '2669652019',
+                                '137711000006111',
+                                '854021000006115', '903981000006117', '904031000006115', '1809121000006113',
+                                '137791000006118',
+                                '5495941000006114', '8153381000006119', '5495901000006112', '12482301000006115',
+                                '11904991000006116',
+                                '4948531000006116', '5003191000006110', '102921000006112', '250369017', '397733018',
+                                '2670126018',
+                                '137721000006115', '250387019', '1488576014', '108938018', '1592611000000110',
+                                '904001000006111',
+                                '854071000006119', '854961000006110', '503483019', '5003151000006116', '88471000006112',
+                                '8153371000006117', '1488577017', '250372012', '743331000006116', '7375991000006118',
+                                '604961000006114',
+                                '1488578010', '99639019', '128130017', '250368013', '5003141000006118',
+                                '4533531000006119',
+                                '5495951000006111', '2170961000000116', '852981000006111', '2474719011', '344793011',
+                                '250375014']
+        mod = ['854981000006117', '700121000006118', '5003161000006119', '3419101000006116']
+
+        allcodes_smoke = non + ex + light + mod + heavy
+        labelforsmoke = [0] * len(non) + [1] * len(ex) + [2] * len(light) + [3] * len(mod) + [4] * len(heavy)
+        smokelevels = pd.DataFrame(np.array([allcodes_smoke, labelforsmoke]).transpose()).rename(
+            columns={0: 'medcode', 1: 'smoke'})
+        smoke2join = spark.sqlContext.createDataFrame(smokelevels)
+
+        allsmoke = retrieve_by_enttype(file, spark, enttype=allcodes_smoke, id_str='10', duration=duration)
+        allsmoke = allsmoke.join(smoke2join, 'medcode', 'inner')
+        return allsmoke.select('patid', 'eventdate', 'smoke')
+
     heavy = ['3422221000006116', '5003181000006112', '67621000006112', '819331000006110', '855001000006114']
     non = ['1154431000000112', '4120291000006119', '4120281000006117', '4120301000006118', '6217561000006111',
            '903051000006112', '14866014', '5495921000006119', '854951000006113', '4427811000006111', '3926051000006118',
@@ -436,6 +554,162 @@ def retrieve_smoking_status(file, spark, duration=(1985, 2021)):
 
     return smoke.union(ex_smoke).union(no_smoke).select('patid', 'eventdate', 'smoke')
 
+
+def retrieve_AST_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 50)):
+    """
+    get the AST_ALT_AP measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'systolic']
+    """
+    sAST_ALT_AP = ['6037211000006114',
+                   '2917641000006113',
+                   '3241211000006115',
+                   '8249261000006117',
+                   '8412141000006112',
+                   '8048751000006112',
+                   '8311781000006116',
+                   '6037201000006111',
+                   '2917631000006115',
+                   '1222531013',
+                   '6384071000006111',
+                   '8412131000006119',
+                   '8311771000006119',
+                   '457989010',
+                   '373708010',
+                   '219691000000115',
+                   '457989010',
+                   '496011000006119',
+                   '1781021000006114',
+                   '146761000006113',
+                   '146771000006118',
+                   '5288361000006117',
+                   '5288351000006119',
+                   '8412131000006119',
+                   '8412141000006112',
+                   '5288371000006112',
+                   '6037211000006114',
+                   '6037221000006118',
+                   '6037201000006111']
+
+    AST_ALT_AP = retrieve_by_enttype(file, spark, enttype=sAST_ALT_AP, duration=duration)
+    AST_ALT_AP = AST_ALT_AP.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    AST_ALT_AP = AST_ALT_AP.filter((F.col('value').isNotNull()))
+    AST_ALT_AP = AST_ALT_AP.groupby(['patid', 'eventdate']) \
+        .agg(F.mean('value').alias('AST'))
+
+    return AST_ALT_AP
+
+
+
+def retrieve_ALT_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 50)):
+    """
+    get the AST_ALT_AP measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'systolic']
+    """
+    sAST_ALT_AP = ['8249261000006117',
+ '3424821000006113',
+ '8311661000006117',
+ '8311671000006112',
+ '306221000000119',
+ '128011000000115',
+ '1484990010',
+ '3057131000006118',
+ '1897721000006117',
+ '8061201000006116',
+ '6516861000006118',
+ '8061191000006119',
+ '3057151000006113',
+ '3057161000006110',
+ '3057171000006115',
+ '3057141000006111',
+ '3057181000006117',
+ '6516871000006113']
+    AST_ALT_AP = retrieve_by_enttype(file, spark, enttype=sAST_ALT_AP, duration=duration)
+    AST_ALT_AP = AST_ALT_AP.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    AST_ALT_AP = AST_ALT_AP.filter( (F.col('value').isNotNull()))
+    AST_ALT_AP = AST_ALT_AP.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('ALT'))
+
+    return AST_ALT_AP
+
+
+
+
+
+def retrieve_AP_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 50)):
+    """
+    get the AST_ALT_AP measurement, systolic pressure (high number)
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'systolic']
+    """
+    sAST_ALT_AP =['258933018', '411751016', '457970010', '1485007014', '1485009012', '187121000000117', '746111000006117', '5522201000006110', '3238801000006113', '3943081000006118', '4080161000006116', '4285781000006111', '3623941000006110', '3943091000006115', '2896531000006111', '7665361000006113', '5525821000006110', '6037091000006112', '7867511000006119', '6215851000006119', '2631531000006116', '8311691000006113', '2987501000006113', '6037061000006116', '6029241000006118', '7813391000006114', '6516881000006111', '3238791000006112', '4080141000006115', '6037081000006114', '6278391000006117', '6029231000006111', '6517121000006115', '6737281000006117', '6735901000006113', '4285791000006114', '5412431000006117', '6036951000006119', '7651741000006117', '5519651000006112', '8311681000006110', '12620281000006111', '3328231000006111', '6278401000006115', '8054251000006111', '3328251000006116', '4258941000006116', '4280521000006112', '7651731000006110', '6036991000006113', '317640017', '96961000006113', '258924015', '4080171000006111', '5417991000006114', '6037111000006115', '3328221000006113', '5364151000006118', '4760251000006114', '5515191000006110', '4599151000006114', '8311701000006113', '1485008016', '457977013', '5412441000006110', '6037021000006110', '2562821000006114', '6036981000006110', '6278371000006118', '5525811000006119', '5519661000006114', '6517161000006114', '6278381000006115', '5412421000006115', '5364161000006116', '3520181000006115', '457257011', '457974018', '6037051000006118', '5417981000006111', '258940017', '1627861000006118', '6037121000006111', '6278411000006117', '3427211000006114', '12620291000006114', '8311711000006111', '2856601000006112', '3520171000006118', '405616018', '457981013', '3427261000006112', '4080151000006118', '6735891000006114', '150381000006115', '7693221000006113', '6037011000006119', '6517141000006110', '7867521000006110', '8054261000006113', '4599171000006116', '3723831000006115', '258925019', '1574961000006113', '1484991014', '457973012', '6037031000006113', '3623931000006117', '3273791000006118', '2856611000006110', '6278361000006113', '2562811000006118', '3328261000006119', '7867501000006117', '6036961000006117', '406366014', '454410017', '457978015', '5515201000006113', '7813401000006111', '3427251000006110']
+
+    AST_ALT_AP = retrieve_by_enttype(file, spark, enttype=sAST_ALT_AP, duration=duration)
+    AST_ALT_AP = AST_ALT_AP.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    AST_ALT_AP = AST_ALT_AP.filter( (F.col('value').isNotNull()))
+    AST_ALT_AP = AST_ALT_AP.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('AP'))
+
+    return AST_ALT_AP
+
+
+
+
+def retrieve_haemoglob_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 200)):
+    """
+    get the haemoglob measurement,
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'haemoglob']
+    """
+    shaemoglob = ['813551000006113']
+    haemoglob = retrieve_by_enttype(file, spark, enttype=shaemoglob, duration=duration)
+    haemoglob = haemoglob.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    haemoglob = haemoglob.filter( (F.col('value').isNotNull()))
+    haemoglob = haemoglob.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('haemoglob'))
+
+    return haemoglob
+def retrieve_haematocrit_measurement(file, spark, duration=(1985, 2021), usable_range=(0, 100)):
+    """
+    get the haematocrit measurement
+    :param file:
+    :param spark:
+    :param duration:
+    :return: ['patid', 'eventdate', 'haematocrit']
+    """
+    shaematocrit = ['1783521010',
+ '373221019',
+ '483830014',
+ '247851000006116',
+ '257231010',
+ '8404041000006119',
+ '2954571000006119',
+ '2954561000006114',
+ '2954521000006115',
+ '2954551000006112',
+ '2954581000006116',
+ '2954591000006118',
+ '8404031000006112',
+ '2954601000006114',
+ '2954531000006117',
+ '5283091000006117',
+ '5283081000006115']
+    haematocrit = retrieve_by_enttype(file, spark, enttype=shaematocrit, duration=duration)
+    haematocrit = haematocrit.where((F.col('value') > usable_range[0]) & (F.col('value') < usable_range[1]))
+    haematocrit = haematocrit.filter( (F.col('value').isNotNull()))
+    haematocrit = haematocrit.groupby(['patid', 'eventdate'])\
+        .agg( F.mean('value').alias('haematocrit'))
+
+    return haematocrit
 
 def retrieve_nyha_status(file, spark, duration=(1985, 2021)):
     """

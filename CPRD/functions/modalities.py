@@ -1031,10 +1031,10 @@ def retrieve_ethnicity(file, spark):
                 WHEN 'White' THEN 'White'
                 WHEN 'Bl_Afric' THEN 'Black'
                 WHEN 'Oth_Asian' THEN 'Asian'
-                WHEN 'Mixed' THEN 'Other or Unknown'
-                WHEN 'Other' THEN 'Other or Unknown'
-                WHEN 'Unknown' THEN 'Other or Unknown'
-                ELSE 'Other or Unknown'
+                WHEN 'Mixed' THEN 'Other'
+                WHEN 'Other' THEN 'Other'
+                WHEN 'Unknown' THEN 'Unknown'
+                ELSE 'Other'
             END
             """
         ),
